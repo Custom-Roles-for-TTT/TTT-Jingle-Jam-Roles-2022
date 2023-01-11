@@ -51,6 +51,7 @@ ROLE.translations = {
 RegisterRole(ROLE)
 
 local HookAdd = hook.Add
+local RemoveHook = hook.Remove
 local GetAllPlayers = player.GetAll
 local TimerCreate = timer.Create
 local TimerRemove = timer.Remove
@@ -250,9 +251,65 @@ if CLIENT then
         end
     end)
 
-    ---------
-    -- HUD --
-    ---------
+    ------------------
+    -- HIGHLIGHTING --
+    ------------------
+
+    local vision_enabled = false
+    local client = nil
+
+    local function EnableShadowTargetHighlights()
+        HookAdd("PreDrawHalos", "Shadow_Highlight_PreDrawHalos", function()
+            local sid64 = client:GetNWString("ShadowTarget", "")
+            if sid64 == "" then return end
+
+            local target = PlayerGetBySteamID64(sid64)
+            if not IsValid(target) then return end
+
+            local ent = nil
+            if target:IsActive() then
+                ent = target
+            else
+                ent = target:GetRagdollEntity()
+            end
+            if not IsValid(ent) then return end
+
+            -- Highlight the target in a bright color
+            halo.Add({ent}, ROLE_COLORS[ROLE_INNOCENT], 1, 1, 1, true, true)
+        end)
+    end
+
+    HookAdd("TTTUpdateRoleState", "Shadow_Highlight_TTTUpdateRoleState", function()
+        client = LocalPlayer()
+
+        -- Disable highlights on role change
+        if vision_enabled then
+            RemoveHook("PreDrawHalos", "Shadow_Highlight_PreDrawHalos")
+            vision_enabled = false
+        end
+    end)
+
+    -- Handle enabling and disabling of highlighting
+    HookAdd("Think", "Assassin_Highlight_Think", function()
+        if not IsPlayer(client) or not client:Alive() or client:IsSpec() then return end
+
+        if client:IsShadow() then
+            if not vision_enabled then
+                EnableShadowTargetHighlights()
+                vision_enabled = true
+            end
+        else
+            vision_enabled = false
+        end
+
+        if not vision_enabled then
+            RemoveHook("PreDrawHalos", "Shadow_Highlight_PreDrawHalos")
+        end
+    end)
+
+    ----------------------
+    -- RADIUS PARTICLES --
+    ----------------------
 
     local function DrawRadius(client, ent, r)
         if not ent.RadiusEmitter then ent.RadiusEmitter = ParticleEmitter(ent:GetPos()) end
@@ -274,7 +331,7 @@ if CLIENT then
                 particle:SetEndSize(0)
                 particle:SetRoll(MathRand(0, math.pi))
                 particle:SetRollDelta(0)
-                particle:SetColor(25, 200, 25)
+                particle:SetColor(ROLE_COLORS[ROLE_INNOCENT].r, ROLE_COLORS[ROLE_INNOCENT].g, ROLE_COLORS[ROLE_INNOCENT].b)
             end
         end
     end
@@ -325,6 +382,10 @@ if CLIENT then
     HookAdd("TTTEndRound", "Shadow_ClearCache_TTTEndRound", function()
         TargetCleanup()
     end)
+
+    ---------
+    -- HUD --
+    ---------
 
     HookAdd("HUDPaint", "Shadow_HUDPaint", function()
         local ply = LocalPlayer()
