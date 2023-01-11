@@ -50,12 +50,12 @@ ROLE.translations = {
 
 RegisterRole(ROLE)
 
-local HookAdd = hook.Add
+local AddHook = hook.Add
 local RemoveHook = hook.Remove
 local GetAllPlayers = player.GetAll
-local TimerCreate = timer.Create
-local TimerRemove = timer.Remove
-local PlayerGetBySteamID64 = player.GetBySteamID64
+local CreateTimer = timer.Create
+local RemoveTimer = timer.Remove
+local GetPlayerBySteamID64 = player.GetBySteamID64
 local UtilSimpleTime = util.SimpleTime
 local T = LANG.GetTranslation
 local PT = LANG.GetParamTranslation
@@ -76,7 +76,7 @@ if SERVER then
 
     util.AddNetworkString("TTT_UpdateShadowWins")
 
-    HookAdd("TTTSyncGlobals", "Shadow_TTTSyncGlobals", function()
+    AddHook("TTTSyncGlobals", "Shadow_TTTSyncGlobals", function()
         SetGlobalInt("ttt_shadow_start_timer", start_timer:GetInt())
         SetGlobalInt("ttt_shadow_buffer_timer", buffer_timer:GetInt())
         SetGlobalFloat("ttt_shadow_alive_radius", alive_radius:GetFloat() * 52.49)
@@ -103,8 +103,8 @@ if SERVER then
         end
     end
 
-    HookAdd("TTTBeginRound", "Shadow_TTTBeginRound", function()
-        TimerCreate("TTTShadowTimer", 0.1, 0, function()
+    AddHook("TTTBeginRound", "Shadow_TTTBeginRound", function()
+        CreateTimer("TTTShadowTimer", 0.1, 0, function()
             for _, v in pairs(GetAllPlayers()) do
                 if v:IsActiveShadow() then
                     local t = v:GetNWFloat("ShadowTimer", -1)
@@ -117,7 +117,7 @@ if SERVER then
                         v:SetNWFloat("ShadowTimer", -1)
                     end
 
-                    local target = PlayerGetBySteamID64(v:GetNWString("ShadowTarget", ""))
+                    local target = GetPlayerBySteamID64(v:GetNWString("ShadowTarget", ""))
                     local ent = target
                     local radius = alive_radius:GetFloat() * 52.49
                     if not target:IsActive() then
@@ -144,11 +144,11 @@ if SERVER then
     -- WIN CHECKS --
     ----------------
 
-    HookAdd("Initialize", "Shadow_Initialize", function()
+    AddHook("Initialize", "Shadow_Initialize", function()
         WIN_SHADOW = GenerateNewWinID(ROLE_SHADOW)
     end)
 
-    HookAdd("TTTWinCheckComplete", "Shadow_TTTWinCheckComplete", function(win_type)
+    AddHook("TTTWinCheckComplete", "Shadow_TTTWinCheckComplete", function(win_type)
         if win_type == WIN_NONE then return end
         if not player.IsRoleLiving(ROLE_SHADOW) then return end
 
@@ -161,16 +161,16 @@ if SERVER then
     -- CLEANUP --
     -------------
 
-    HookAdd("TTTPrepareRound", "Shadow_PrepareRound", function()
+    AddHook("TTTPrepareRound", "Shadow_PrepareRound", function()
         for _, v in pairs(GetAllPlayers()) do
             v:SetNWBool("ShadowActive", false)
             v:SetNWString("ShadowTarget", "")
             v:SetNWFloat("ShadowTimer", -1)
         end
-        TimerRemove("TTTShadowTimer")
+        RemoveTimer("TTTShadowTimer")
     end)
 
-    HookAdd("TTTPlayerRoleChanged", "Shadow_TTTPlayerRoleChanged", function(ply, oldRole, newRole)
+    AddHook("TTTPlayerRoleChanged", "Shadow_TTTPlayerRoleChanged", function(ply, oldRole, newRole)
         if oldRole == ROLE_SHADOW and oldRole ~= newRole then
             ply:SetNWBool("ShadowActive", false)
             ply:SetNWString("ShadowTarget", "")
@@ -186,7 +186,7 @@ if CLIENT then
 
     local shadow_wins = false
 
-    HookAdd("TTTPrepareRound", "Shadow_WinTracking_TTTPrepareRound", function()
+    AddHook("TTTPrepareRound", "Shadow_WinTracking_TTTPrepareRound", function()
         shadow_wins = false
     end)
 
@@ -201,7 +201,7 @@ if CLIENT then
         end
     end)
 
-    HookAdd("TTTScoringSecondaryWins", "Shadow_TTTScoringSecondaryWins", function(wintype, secondary_wins)
+    AddHook("TTTScoringSecondaryWins", "Shadow_TTTScoringSecondaryWins", function(wintype, secondary_wins)
         if shadow_wins then
             TableInsert(secondary_wins, ROLE_SHADOW)
         end
@@ -211,13 +211,13 @@ if CLIENT then
     -- EVENTS --
     ------------
 
-    HookAdd("TTTEventFinishText", "Shadow_TTTEventFinishText", function(e)
+    AddHook("TTTEventFinishText", "Shadow_TTTEventFinishText", function(e)
         if e.win == WIN_SHADOW then
             return LANG.GetParamTranslation("ev_win_shadow", { role = StringLower(ROLE_STRINGS[ROLE_SHADOW]) })
         end
     end)
 
-    HookAdd("TTTEventFinishIconText", "Shadow_TTTEventFinishIconText", function(e, win_string, role_string)
+    AddHook("TTTEventFinishIconText", "Shadow_TTTEventFinishIconText", function(e, win_string, role_string)
         if e.win == WIN_SHADOW then
             return "ev_win_icon_also", ROLE_STRINGS[ROLE_SHADOW]
         end
@@ -227,7 +227,7 @@ if CLIENT then
     -- TARGET ID --
     ---------------
 
-    HookAdd("TTTTargetIDPlayerText", "Shadow_TTTTargetIDPlayerText", function(ent, client, text, clr, secondaryText)
+    AddHook("TTTTargetIDPlayerText", "Shadow_TTTTargetIDPlayerText", function(ent, client, text, clr, secondaryText)
         if IsPlayer(ent) then
             if client:IsActiveShadow() and ent:SteamID64() == client:GetNWString("ShadowTarget", "") then
                 return text, clr, T("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
@@ -239,13 +239,13 @@ if CLIENT then
     -- SCOREBOARD --
     ----------------
 
-    HookAdd("TTTScoreboardPlayerRole", "Shadow_TTTScoreboardPlayerRole", function(ply, cli, c, roleStr)
+    AddHook("TTTScoreboardPlayerRole", "Shadow_TTTScoreboardPlayerRole", function(ply, cli, c, roleStr)
         if cli:IsActiveShadow() and ply:SteamID64() == cli:GetNWString("ShadowTarget", "") then
             return c, roleStr, ROLE_SHADOW
         end
     end)
 
-    HookAdd("TTTScoreboardPlayerName", "Shadow_TTTScoreboardPlayerName", function(ply, cli, text)
+    AddHook("TTTScoreboardPlayerName", "Shadow_TTTScoreboardPlayerName", function(ply, cli, text)
         if cli:IsActiveShadow() and ply:SteamID64() == cli:GetNWString("ShadowTarget", "") then
             return ply:Nick() .. "(" .. T("shadow_target") .. ")"
         end
@@ -259,11 +259,11 @@ if CLIENT then
     local client = nil
 
     local function EnableShadowTargetHighlights()
-        HookAdd("PreDrawHalos", "Shadow_Highlight_PreDrawHalos", function()
+        AddHook("PreDrawHalos", "Shadow_Highlight_PreDrawHalos", function()
             local sid64 = client:GetNWString("ShadowTarget", "")
             if sid64 == "" then return end
 
-            local target = PlayerGetBySteamID64(sid64)
+            local target = GetPlayerBySteamID64(sid64)
             if not IsValid(target) then return end
 
             local ent = nil
@@ -279,7 +279,7 @@ if CLIENT then
         end)
     end
 
-    HookAdd("TTTUpdateRoleState", "Shadow_Highlight_TTTUpdateRoleState", function()
+    AddHook("TTTUpdateRoleState", "Shadow_Highlight_TTTUpdateRoleState", function()
         client = LocalPlayer()
 
         -- Disable highlights on role change
@@ -290,7 +290,7 @@ if CLIENT then
     end)
 
     -- Handle enabling and disabling of highlighting
-    HookAdd("Think", "Assassin_Highlight_Think", function()
+    AddHook("Think", "Assassin_Highlight_Think", function()
         if not IsPlayer(client) or not client:Alive() or client:IsSpec() then return end
 
         if client:IsShadow() then
@@ -359,10 +359,10 @@ if CLIENT then
         targetBody = nil
     end
 
-    HookAdd("Think", "Shadow_Think", function()
+    AddHook("Think", "Shadow_Think", function()
         local ply = LocalPlayer()
         if ply:IsActiveShadow() then
-            targetPlayer = targetPlayer or PlayerGetBySteamID64(ply:GetNWString("ShadowTarget", ""))
+            targetPlayer = targetPlayer or GetPlayerBySteamID64(ply:GetNWString("ShadowTarget", ""))
             if IsValid(targetPlayer) then
                 if targetPlayer:IsActive() then
                     DrawRadius(ply, targetPlayer, GetGlobalFloat("ttt_shadow_alive_radius", 262.45))
@@ -379,7 +379,7 @@ if CLIENT then
         end
     end)
 
-    HookAdd("TTTEndRound", "Shadow_ClearCache_TTTEndRound", function()
+    AddHook("TTTEndRound", "Shadow_ClearCache_TTTEndRound", function()
         TargetCleanup()
     end)
 
@@ -387,7 +387,7 @@ if CLIENT then
     -- HUD --
     ---------
 
-    HookAdd("HUDPaint", "Shadow_HUDPaint", function()
+    AddHook("HUDPaint", "Shadow_HUDPaint", function()
         local ply = LocalPlayer()
 
         if not IsValid(ply) or ply:IsSpec() or GetRoundState() ~= ROUND_ACTIVE then return end
@@ -417,6 +417,24 @@ if CLIENT then
             local color = Color(200 + math.sin(CurTime() * 32) * 50, 0, 0, 155)
 
             CRHUD:PaintProgressBar(x, y, w, color, message, progress)
+        end
+    end)
+
+    --------------
+    -- TUTORIAL --
+    --------------
+
+    AddHook("TTTTutorialRoleText", "Cupid_TTTTutorialRoleText", function(role, titleLabel)
+        if role == ROLE_SHADOW then
+            local roleColor = ROLE_COLORS(ROLE_SHADOW)
+            local html = "The " .. ROLE_STRINGS[ROLE_CUPID] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. Independent .. "</span> role that wins by staying close to their target without dying. If the shadow kills their target, they die instantly. If the shadow survives until the end of the round they win"
+
+            local start_timer = GetGlobalInt("ttt_shadow_start_timer", 30)
+            local buffer_timer = GetGlobalInt("ttt_shadow_buffer_timer", 5)
+            html = html .. "<span style='display: block; margin-top: 10px;'>They can see their target through walls and are given <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. start_timer .. " seconds</span> to find them at the start of the round. Once the shadow has found their target, they are given a <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. buffer_timer .. " second</span> warning if they start to get too far away. If either of these timers run out before the shadow can find their target, the shadow dies.</span>"
+
+            html = html .. "<span style='display: block; margin-top: 10px;'>If your target dies you still need to stay close to their body. Staying too far away from their body for more than <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. buffer_timer .. " seconds</span> will kill you.</span>"
+            return html
         end
     end)
 end
