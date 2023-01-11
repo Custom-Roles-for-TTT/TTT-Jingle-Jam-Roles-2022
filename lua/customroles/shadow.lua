@@ -424,10 +424,10 @@ if CLIENT then
     -- TUTORIAL --
     --------------
 
-    AddHook("TTTTutorialRoleText", "Cupid_TTTTutorialRoleText", function(role, titleLabel)
+    AddHook("TTTTutorialRoleText", "Shadow_TTTTutorialRoleText", function(role, titleLabel)
         if role == ROLE_SHADOW then
-            local roleColor = ROLE_COLORS(ROLE_SHADOW)
-            local html = "The " .. ROLE_STRINGS[ROLE_CUPID] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. Independent .. "</span> role that wins by staying close to their target without dying. If the shadow kills their target, they die instantly. If the shadow survives until the end of the round they win"
+            local roleColor = ROLE_COLORS[ROLE_SHADOW]
+            local html = "The " .. ROLE_STRINGS[ROLE_SHADOW] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>independent</span> role that wins by staying close to their target without dying. If the shadow kills their target, they die instantly. If the shadow survives until the end of the round they win"
 
             local start_timer = GetGlobalInt("ttt_shadow_start_timer", 30)
             local buffer_timer = GetGlobalInt("ttt_shadow_buffer_timer", 5)
@@ -438,5 +438,3 @@ if CLIENT then
         end
     end)
 end
-
--- TODO: Add tutorial page
