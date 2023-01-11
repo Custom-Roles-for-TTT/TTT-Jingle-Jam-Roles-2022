@@ -140,6 +140,21 @@ if SERVER then
         end)
     end)
 
+    hook.Add("PlayerDeath", "Shadow_KillCheck_PlayerDeath", function(victim, infl, attacker)
+        local valid_kill = IsPlayer(attacker) and attacker ~= victim and GetRoundState() == ROUND_ACTIVE
+        if not valid_kill then return end
+        if not attacker:IsShadow() then return end
+
+        if victim:SteamID64() == attacker:GetNWString("ShadowTarget", "") then
+            attacker:Kill()
+            attacker:PrintMessage(HUD_PRINTCENTER, "You killed your target!")
+            attacker:PrintMessage(HUD_PRINTTALK, "You killed your target!")
+            attacker:SetNWBool("ShadowActive", false)
+            attacker:SetNWString("ShadowTarget", "")
+            attacker:SetNWFloat("ShadowTimer", -1)
+        end
+    end)
+
     ----------------
     -- WIN CHECKS --
     ----------------
