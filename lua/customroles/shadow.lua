@@ -50,6 +50,21 @@ ROLE.translations = {
 
 RegisterRole(ROLE)
 
+local HookAdd = hook.Add
+local GetAllPlayers = player.GetAll
+local TimerCreate = timer.Create
+local TimerRemove = timer.Remove
+local PlayerGetBySteamID64 = player.GetBySteamID64
+local UtilSimpleTime = util.SimpleTime
+local T = LANG.GetTranslation
+local PT = LANG.GetParamTranslation
+local TableInsert = table.insert
+local StringLower = string.lower
+local MathRandom = math.random
+local MathSin = math.sin
+local MathCos = math.cos
+local MathRand = math.Rand
+
 if SERVER then
     AddCSLuaFile()
 
@@ -60,9 +75,7 @@ if SERVER then
 
     util.AddNetworkString("TTT_UpdateShadowWins")
 
-    local GetAllPlayers = player.GetAll
-
-    hook.Add("TTTSyncGlobals", "Shadow_TTTSyncGlobals", function()
+    HookAdd("TTTSyncGlobals", "Shadow_TTTSyncGlobals", function()
         SetGlobalInt("ttt_shadow_start_timer", start_timer:GetInt())
         SetGlobalInt("ttt_shadow_buffer_timer", buffer_timer:GetInt())
         SetGlobalFloat("ttt_shadow_alive_radius", alive_radius:GetFloat() * 52.49)
@@ -77,11 +90,11 @@ if SERVER then
         local potentialTargets = {}
         for _, p in pairs(GetAllPlayers()) do
             if p:Alive() and not p:IsSpec() and p ~= ply then
-                table.insert(potentialTargets, p)
+                TableInsert(potentialTargets, p)
             end
         end
         if #potentialTargets > 0 then
-            local target = potentialTargets[math.random(#potentialTargets)]
+            local target = potentialTargets[MathRandom(#potentialTargets)]
             ply:SetNWString("ShadowTarget", target:SteamID64() or "")
             ply:PrintMessage(HUD_PRINTTALK, "Your target is " .. target:Nick() .. ".")
             ply:PrintMessage(HUD_PRINTCENTER, "Your target is " .. target:Nick() .. ".")
@@ -89,11 +102,11 @@ if SERVER then
         end
     end
 
-    hook.Add("TTTBeginRound", "Shadow_TTTBeginRound", function()
-        timer.Create("TTTShadowTimer", 0.1, 0, function()
+    HookAdd("TTTBeginRound", "Shadow_TTTBeginRound", function()
+        TimerCreate("TTTShadowTimer", 0.1, 0, function()
             for _, v in pairs(GetAllPlayers()) do
                 if v:IsActiveShadow() then
-                    local t = v:SetNWFloat("ShadowTimer", -1)
+                    local t = v:GetNWFloat("ShadowTimer", -1)
                     if t > 0 and CurTime() > t then
                         v:Kill()
                         v:PrintMessage(HUD_PRINTCENTER, "You didn't stay close to your target!")
@@ -103,7 +116,7 @@ if SERVER then
                         v:SetNWFloat("ShadowTimer", -1)
                     end
 
-                    local target = player.GetBySteamID64(v:SetNWString("ShadowTarget", ""))
+                    local target = PlayerGetBySteamID64(v:GetNWString("ShadowTarget", ""))
                     local ent = target
                     local radius = alive_radius:GetFloat() * 52.49
                     if not target:IsActive() then
@@ -130,11 +143,11 @@ if SERVER then
     -- WIN CHECKS --
     ----------------
 
-    hook.Add("Initialize", "Shadow_Initialize", function()
+    HookAdd("Initialize", "Shadow_Initialize", function()
         WIN_SHADOW = GenerateNewWinID(ROLE_SHADOW)
     end)
 
-    hook.Add("TTTWinCheckComplete", "Shadow_TTTWinCheckComplete", function(win_type)
+    HookAdd("TTTWinCheckComplete", "Shadow_TTTWinCheckComplete", function(win_type)
         if win_type == WIN_NONE then return end
         if not player.IsRoleLiving(ROLE_SHADOW) then return end
 
@@ -147,16 +160,16 @@ if SERVER then
     -- CLEANUP --
     -------------
 
-    hook.Add("TTTPrepareRound", "Shadow_PrepareRound", function()
+    HookAdd("TTTPrepareRound", "Shadow_PrepareRound", function()
         for _, v in pairs(GetAllPlayers()) do
             v:SetNWBool("ShadowActive", false)
             v:SetNWString("ShadowTarget", "")
             v:SetNWFloat("ShadowTimer", -1)
-            timer.Remove("TTTShadowTimer")
         end
+        TimerRemove("TTTShadowTimer")
     end)
 
-    hook.Add("TTTPlayerRoleChanged", "Shadow_TTTPlayerRoleChanged", function(ply, oldRole, newRole)
+    HookAdd("TTTPlayerRoleChanged", "Shadow_TTTPlayerRoleChanged", function(ply, oldRole, newRole)
         if oldRole == ROLE_SHADOW and oldRole ~= newRole then
             ply:SetNWBool("ShadowActive", false)
             ply:SetNWString("ShadowTarget", "")
@@ -172,7 +185,7 @@ if CLIENT then
 
     local shadow_wins = false
 
-    hook.Add("TTTPrepareRound", "Shadow_WinTracking_TTTPrepareRound", function()
+    HookAdd("TTTPrepareRound", "Shadow_WinTracking_TTTPrepareRound", function()
         shadow_wins = false
     end)
 
@@ -187,9 +200,9 @@ if CLIENT then
         end
     end)
 
-    hook.Add("TTTScoringSecondaryWins", "Shadow_TTTScoringSecondaryWins", function(wintype, secondary_wins)
+    HookAdd("TTTScoringSecondaryWins", "Shadow_TTTScoringSecondaryWins", function(wintype, secondary_wins)
         if shadow_wins then
-            table.insert(secondary_wins, ROLE_SHADOW)
+            TableInsert(secondary_wins, ROLE_SHADOW)
         end
     end)
 
@@ -197,13 +210,13 @@ if CLIENT then
     -- EVENTS --
     ------------
 
-    hook.Add("TTTEventFinishText", "Shadow_TTTEventFinishText", function(e)
+    HookAdd("TTTEventFinishText", "Shadow_TTTEventFinishText", function(e)
         if e.win == WIN_SHADOW then
-            return LANG.GetParamTranslation("ev_win_shadow", { role = string.lower(ROLE_STRINGS[ROLE_SHADOW]) })
+            return LANG.GetParamTranslation("ev_win_shadow", { role = StringLower(ROLE_STRINGS[ROLE_SHADOW]) })
         end
     end)
 
-    hook.Add("TTTEventFinishIconText", "Shadow_TTTEventFinishIconText", function(e, win_string, role_string)
+    HookAdd("TTTEventFinishIconText", "Shadow_TTTEventFinishIconText", function(e, win_string, role_string)
         if e.win == WIN_SHADOW then
             return "ev_win_icon_also", ROLE_STRINGS[ROLE_SHADOW]
         end
@@ -213,10 +226,10 @@ if CLIENT then
     -- TARGET ID --
     ---------------
 
-    hook.Add("TTTTargetIDPlayerText", "Shadow_TTTTargetIDPlayerText", function(ent, client, text, clr, secondaryText)
+    HookAdd("TTTTargetIDPlayerText", "Shadow_TTTTargetIDPlayerText", function(ent, client, text, clr, secondaryText)
         if IsPlayer(ent) then
             if client:IsActiveShadow() and ent:SteamID64() == client:GetNWString("ShadowTarget", "") then
-                return text, clr, LANG.GetTranslation("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
+                return text, clr, T("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
             end
         end
     end)
@@ -225,9 +238,15 @@ if CLIENT then
     -- SCOREBOARD --
     ----------------
 
-    hook.Add("TTTScoreboardPlayerRole", "Shadow_TTTScoreboardPlayerRole", function(ply, cli, c, roleStr)
+    HookAdd("TTTScoreboardPlayerRole", "Shadow_TTTScoreboardPlayerRole", function(ply, cli, c, roleStr)
         if cli:IsActiveShadow() and ply:SteamID64() == cli:GetNWString("ShadowTarget", "") then
             return c, roleStr, ROLE_SHADOW
+        end
+    end)
+
+    HookAdd("TTTScoreboardPlayerName", "Shadow_TTTScoreboardPlayerName", function(ply, cli, text)
+        if cli:IsActiveShadow() and ply:SteamID64() == cli:GetNWString("ShadowTarget", "") then
+            return ply:Nick() .. "(" .. T("shadow_target") .. ")"
         end
     end)
 
@@ -245,7 +264,7 @@ if CLIENT then
                 ent.RadiusEmitter:SetPos(pos)
                 ent.RadiusNextPart = CurTime() + 0.002
                 ent.RadiusDir = ent.RadiusDir + 2.4
-                local vec = Vector(math.sin(ent.RadiusDir) * r, math.cos(ent.RadiusDir) * r, 10)
+                local vec = Vector(MathSin(ent.RadiusDir) * r, MathCos(ent.RadiusDir) * r, 10)
                 local particle = ent.RadiusEmitter:Add("particle/wisp.vmt", ent:GetPos() + vec)
                 particle:SetVelocity(Vector(0, 0, 0))
                 particle:SetDieTime(2)
@@ -253,7 +272,7 @@ if CLIENT then
                 particle:SetEndAlpha(0)
                 particle:SetStartSize(1)
                 particle:SetEndSize(0)
-                particle:SetRoll(math.Rand(0, math.pi))
+                particle:SetRoll(MathRand(0, math.pi))
                 particle:SetRollDelta(0)
                 particle:SetColor(25, 200, 25)
             end
@@ -269,30 +288,45 @@ if CLIENT then
         end
     end
 
-    hook.Add("TTTPlayerAliveClientThink", "Shadow_TTTPlayerAliveClientThink", function(client, ply)
-        if client:IsActiveShadow() and ply:SteamID64() == client:GetNWString("ShadowTarget", "") then
-            DrawRadius(client, ply, GetGlobalFloat("ttt_shadow_alive_radius", 262.45))
-        else
-            RemoveRadius(ply)
-        end
-    end)
+    local targetPlayer = nil
+    local targetBody = nil
 
-    hook.Add("Think", "Shadow_Think", function()
+    local function TargetCleanup()
+        if IsValid(targetPlayer) then
+            RemoveRadius(targetPlayer)
+        end
+        if IsValid(targetBody) then
+            RemoveRadius(targetBody)
+        end
+        targetPlayer = nil
+        targetBody = nil
+    end
+
+    HookAdd("Think", "Shadow_Think", function()
         local ply = LocalPlayer()
         if ply:IsActiveShadow() then
-            local bodies = ents.FindByClass("prop_ragdoll")
-            for _, v in pairs(bodies) do
-                local body = CORPSE.GetPlayer(v)
-                if v:SteamID64() == ply:GetNWString("ShadowTarget", "") then
-                    DrawRadius(ply, body, GetGlobalFloat("ttt_shadow_dead_radius", 104.98))
+            targetPlayer = targetPlayer or PlayerGetBySteamID64(ply:GetNWString("ShadowTarget", ""))
+            if IsValid(targetPlayer) then
+                if targetPlayer:IsActive() then
+                    DrawRadius(ply, targetPlayer, GetGlobalFloat("ttt_shadow_alive_radius", 262.45))
                 else
-                    RemoveRadius(body)
+                    RemoveRadius(targetPlayer)
+                    targetBody = targetBody or targetPlayer:GetRagdollEntity()
+                    if IsValid(targetBody) then
+                        DrawRadius(ply, targetBody, GetGlobalFloat("ttt_shadow_dead_radius", 104.98))
+                    end
                 end
             end
+        else
+            TargetCleanup()
         end
     end)
 
-    hook.Add("HUDPaint", "Shadow_HUDPaint", function()
+    HookAdd("TTTEndRound", "Shadow_ClearCache_TTTEndRound", function()
+        TargetCleanup()
+    end)
+
+    HookAdd("HUDPaint", "Shadow_HUDPaint", function()
         local ply = LocalPlayer()
 
         if not IsValid(ply) or ply:IsSpec() or GetRoundState() ~= ROUND_ACTIVE then return end
@@ -300,16 +334,15 @@ if CLIENT then
         local t = ply:SetNWFloat("ShadowTimer", -1)
 
         if ply:IsActiveShadow() and t > 0 then
-            local PT = LANG.GetParamTranslation
             local remaining = MathMax(0, t - CurTime())
 
             local message = ""
             local total = 0
             if ply:IsRoleActive() then
-                message = PT("shadow_return_target", { time = util.SimpleTime(remaining, "%02i:%02i") })
+                message = PT("shadow_return_target", { time = UtilSimpleTime(remaining, "%02i:%02i") })
                 total = GetGlobalInt("ttt_shadow_buffer_timer", 5)
             else
-                message = PT("shadow_find_target", { time = util.SimpleTime(remaining, "%02i:%02i") })
+                message = PT("shadow_find_target", { time = UtilSimpleTime(remaining, "%02i:%02i") })
                 total = GetGlobalInt("ttt_shadow_start_timer", 30)
             end
 
