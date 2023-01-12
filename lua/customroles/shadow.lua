@@ -68,9 +68,9 @@ if SERVER then
     AddCSLuaFile()
 
     local start_timer = CreateConVar("ttt_shadow_start_timer", "30", FCVAR_NONE, "How much time (in seconds) the shadow has to find their target at the start of the round", 1, 90)
-    local buffer_timer = CreateConVar("ttt_shadow_buffer_timer", "8", FCVAR_NONE, "How much time (in seconds) the shadow can stay of their target's radius", 1, 30)
+    local buffer_timer = CreateConVar("ttt_shadow_buffer_timer", "7", FCVAR_NONE, "How much time (in seconds) the shadow can stay of their target's radius", 1, 30)
     local alive_radius = CreateConVar("ttt_shadow_alive_radius", "8", FCVAR_NONE, "The radius (in meters) from the living target that the shadow has to stay within", 1, 15)
-    local dead_radius = CreateConVar("ttt_shadow_dead_radius", "5", FCVAR_NONE, "The radius (in meters) from the death target that the shadow has to stay within", 1, 15)
+    local dead_radius = CreateConVar("ttt_shadow_dead_radius", "3", FCVAR_NONE, "The radius (in meters) from the death target that the shadow has to stay within", 1, 15)
 
     util.AddNetworkString("TTT_UpdateShadowWins")
 
@@ -286,7 +286,11 @@ if CLIENT then
     AddHook("TTTTargetIDPlayerText", "Shadow_TTTTargetIDPlayerText", function(ent, client, text, clr, secondaryText)
         if IsPlayer(ent) then
             if client:IsActiveShadow() and ent:EnhancedSteamID64() == client:GetNWString("ShadowTarget", "") then
-                return text, clr, LANG.GetTranslation("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
+                if text == nil then
+                    return LANG.GetTranslation("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
+                else
+                    return text, clr, LANG.GetTranslation("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
+                end
             end
         end
     end)
@@ -328,7 +332,7 @@ if CLIENT then
                 ent = target
             else
                 ent = ClientGetRagdollEntity(sid64)
-                r = GetGlobalFloat("ttt_shadow_dead_radius", 262.45)
+                r = GetGlobalFloat("ttt_shadow_dead_radius", 157.47)
             end
             if not IsValid(ent) then return end
 
@@ -488,7 +492,7 @@ if CLIENT then
                     RemoveLink(targetPlayer)
                     targetBody = targetBody or ClientGetRagdollEntity(ply:GetNWString("ShadowTarget", ""))
                     if IsValid(targetBody) then
-                        local dead_radius = GetGlobalFloat("ttt_shadow_dead_radius", 262.45)
+                        local dead_radius = GetGlobalFloat("ttt_shadow_dead_radius", 157.47)
                         DrawRadius(ply, targetBody, dead_radius)
                         if ply:GetPos():Distance(targetBody:GetPos()) > dead_radius then
                             DrawLink(ply, targetBody)
@@ -524,7 +528,7 @@ if CLIENT then
             local total = 0
             if ply:IsRoleActive() then
                 message = PT("shadow_return_target", { time = UtilSimpleTime(remaining, "%02i:%02i") })
-                total = GetGlobalInt("ttt_shadow_buffer_timer", 8)
+                total = GetGlobalInt("ttt_shadow_buffer_timer", 7)
             else
                 message = PT("shadow_find_target", { time = UtilSimpleTime(remaining, "%02i:%02i") })
                 total = GetGlobalInt("ttt_shadow_start_timer", 30)
@@ -550,10 +554,10 @@ if CLIENT then
     AddHook("TTTTutorialRoleText", "Shadow_TTTTutorialRoleText", function(role, titleLabel)
         if role == ROLE_SHADOW then
             local roleColor = ROLE_COLORS[ROLE_SHADOW]
-            local html = "The " .. ROLE_STRINGS[ROLE_SHADOW] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>independent</span> role that wins by staying close to their target without dying. If the shadow kills their target, they die instantly. If the shadow survives until the end of the round they win"
+            local html = "The " .. ROLE_STRINGS[ROLE_SHADOW] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>independent</span> role that wins by staying close to their target without dying. If the shadow kills their target, they die instantly. If the shadow survives until the end of the round they win."
 
             local start_timer = GetGlobalInt("ttt_shadow_start_timer", 30)
-            local buffer_timer = GetGlobalInt("ttt_shadow_buffer_timer", 8)
+            local buffer_timer = GetGlobalInt("ttt_shadow_buffer_timer", 7)
             html = html .. "<span style='display: block; margin-top: 10px;'>They can see their target through walls and are given <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. start_timer .. " seconds</span> to find them at the start of the round. Once the shadow has found their target, they are given a <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. buffer_timer .. " second</span> warning if they start to get too far away. If either of these timers run out before the shadow can find their target, the shadow dies.</span>"
 
             html = html .. "<span style='display: block; margin-top: 10px;'>If your target dies you still need to stay close to their body. Staying too far away from their body for more than <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. buffer_timer .. " seconds</span> will kill you.</span>"
