@@ -78,7 +78,7 @@ ROLE.onroleassigned = function(ply)
         ply:SetNWString("ShadowTarget", closestTarget:SteamID64() or "")
         ply:PrintMessage(HUD_PRINTTALK, "Your target is " .. closestTarget:Nick() .. ".")
         ply:PrintMessage(HUD_PRINTCENTER, "Your target is " .. closestTarget:Nick() .. ".")
-        ply:SetNWFloat("ShadowTimer", CurTime() + start_timer:GetInt())
+        ply:SetNWFloat("ShadowTimer", CurTime() + GetConVar("ttt_shadow_start_timer"):GetInt())
     end
 end
 
