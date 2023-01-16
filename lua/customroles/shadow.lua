@@ -1,3 +1,16 @@
+local AddHook = hook.Add
+local RemoveHook = hook.Remove
+local GetAllPlayers = player.GetAll
+local CreateTimer = timer.Create
+local RemoveTimer = timer.Remove
+local UtilSimpleTime = util.SimpleTime
+local TableInsert = table.insert
+local StringLower = string.lower
+local MathSin = math.sin
+local MathCos = math.cos
+local MathRand = math.Rand
+local MathMax = math.max
+
 local ROLE = {}
 
 ROLE.nameraw = "shadow"
@@ -70,19 +83,6 @@ ROLE.onroleassigned = function(ply)
 end
 
 RegisterRole(ROLE)
-
-local AddHook = hook.Add
-local RemoveHook = hook.Remove
-local GetAllPlayers = player.GetAll
-local CreateTimer = timer.Create
-local RemoveTimer = timer.Remove
-local UtilSimpleTime = util.SimpleTime
-local TableInsert = table.insert
-local StringLower = string.lower
-local MathSin = math.sin
-local MathCos = math.cos
-local MathRand = math.Rand
-local MathMax = math.max
 
 if SERVER then
     AddCSLuaFile()
