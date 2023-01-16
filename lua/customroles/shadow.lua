@@ -49,6 +49,26 @@ ROLE.translations = {
     }
 }
 
+ROLE.onroleassigned = function(ply)
+    local closestTarget = nil
+    local closestDistance = -1
+    for _, p in pairs(GetAllPlayers()) do
+        if p:Alive() and not p:IsSpec() and p ~= ply then
+            local distance = ply:GetPos():Distance(p:GetPos())
+            if closestDistance == -1 or distance < closestDistance then
+                closestTarget = p
+                closestDistance = distance
+            end
+        end
+    end
+    if closestTarget ~= nil then
+        ply:SetNWString("ShadowTarget", closestTarget:SteamID64() or "")
+        ply:PrintMessage(HUD_PRINTTALK, "Your target is " .. closestTarget:Nick() .. ".")
+        ply:PrintMessage(HUD_PRINTCENTER, "Your target is " .. closestTarget:Nick() .. ".")
+        ply:SetNWFloat("ShadowTimer", CurTime() + start_timer:GetInt())
+    end
+end
+
 RegisterRole(ROLE)
 
 local AddHook = hook.Add
@@ -84,26 +104,6 @@ if SERVER then
     -------------------
     -- ROLE FEATURES --
     -------------------
-
-    ROLE_ON_ROLE_ASSIGNED[ROLE_SHADOW] = function(ply)
-        local closestTarget = nil
-        local closestDistance = -1
-        for _, p in pairs(GetAllPlayers()) do
-            if p:Alive() and not p:IsSpec() and p ~= ply then
-                local distance = ply:GetPos():Distance(p:GetPos())
-                if closestDistance == -1 or distance < closestDistance then
-                    closestTarget = p
-                    closestDistance = distance
-                end
-            end
-        end
-        if closestTarget ~= nil then
-            ply:SetNWString("ShadowTarget", closestTarget:SteamID64() or "")
-            ply:PrintMessage(HUD_PRINTTALK, "Your target is " .. closestTarget:Nick() .. ".")
-            ply:PrintMessage(HUD_PRINTCENTER, "Your target is " .. closestTarget:Nick() .. ".")
-            ply:SetNWFloat("ShadowTimer", CurTime() + start_timer:GetInt())
-        end
-    end
 
     AddHook("TTTBeginRound", "Shadow_TTTBeginRound", function()
         CreateTimer("TTTShadowTimer", 0.1, 0, function()
