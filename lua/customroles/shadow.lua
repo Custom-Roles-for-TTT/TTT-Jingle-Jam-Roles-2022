@@ -49,26 +49,6 @@ ROLE.translations = {
     }
 }
 
-ROLE.onroleassigned = function(ply)
-    local closestTarget = nil
-    local closestDistance = -1
-    for _, p in pairs(GetAllPlayers()) do
-        if p:Alive() and not p:IsSpec() and p ~= ply then
-            local distance = ply:GetPos():Distance(p:GetPos())
-            if closestDistance == -1 or distance < closestDistance then
-                closestTarget = p
-                closestDistance = distance
-            end
-        end
-    end
-    if closestTarget ~= nil then
-        ply:SetNWString("ShadowTarget", closestTarget:EnhancedSteamID64() or "")
-        ply:PrintMessage(HUD_PRINTTALK, "Your target is " .. closestTarget:Nick() .. ".")
-        ply:PrintMessage(HUD_PRINTCENTER, "Your target is " .. closestTarget:Nick() .. ".")
-        ply:SetNWFloat("ShadowTimer", CurTime() + start_timer:GetInt())
-    end
-end
-
 RegisterRole(ROLE)
 
 local AddHook = hook.Add
@@ -105,6 +85,26 @@ if SERVER then
     -- ROLE FEATURES --
     -------------------
 
+    ROLE_ON_ROLE_ASSIGNED[ROLE_SHADOW] = function(ply)
+        local closestTarget = nil
+        local closestDistance = -1
+        for _, p in pairs(GetAllPlayers()) do
+            if p:Alive() and not p:IsSpec() and p ~= ply then
+                local distance = ply:GetPos():Distance(p:GetPos())
+                if closestDistance == -1 or distance < closestDistance then
+                    closestTarget = p
+                    closestDistance = distance
+                end
+            end
+        end
+        if closestTarget ~= nil then
+            ply:SetNWString("ShadowTarget", closestTarget:SteamID64() or "")
+            ply:PrintMessage(HUD_PRINTTALK, "Your target is " .. closestTarget:Nick() .. ".")
+            ply:PrintMessage(HUD_PRINTCENTER, "Your target is " .. closestTarget:Nick() .. ".")
+            ply:SetNWFloat("ShadowTimer", CurTime() + start_timer:GetInt())
+        end
+    end
+
     AddHook("TTTBeginRound", "Shadow_TTTBeginRound", function()
         CreateTimer("TTTShadowTimer", 0.1, 0, function()
             for _, v in pairs(GetAllPlayers()) do
@@ -117,7 +117,7 @@ if SERVER then
                         v:SetNWBool("ShadowActive", false)
                         v:SetNWFloat("ShadowTimer", -1)
                     else
-                        local target = player.GetByEnhancedSteamID64(v:GetNWString("ShadowTarget", ""))
+                        local target = player.GetBySteamID64(v:GetNWString("ShadowTarget", ""))
                         local ent = target
                         local radius = alive_radius:GetFloat() * 52.49
                         if not target:IsActive() then
@@ -152,7 +152,7 @@ if SERVER then
         if not valid_kill then return end
         if not attacker:IsShadow() then return end
 
-        if victim:EnhancedSteamID64() == attacker:GetNWString("ShadowTarget", "") then
+        if victim:SteamID64() == attacker:GetNWString("ShadowTarget", "") then
             attacker:Kill()
             attacker:PrintMessage(HUD_PRINTCENTER, "You killed your target!")
             attacker:PrintMessage(HUD_PRINTTALK, "You killed your target!")
@@ -211,7 +211,7 @@ if CLIENT then
         local bodies = ents.FindByClass("prop_ragdoll")
         for _, v in pairs(bodies) do
             local body = CORPSE.GetPlayer(v)
-            if body:EnhancedSteamID64() == sid64 then
+            if body:SteamID64() == sid64 then
                 return v
             end
         end
@@ -272,7 +272,7 @@ if CLIENT then
             local targetSID = ply:GetNWString("ShadowTarget", "")
             if targetSID == "" then return end
 
-            local target = player.GetByEnhancedSteamID64(targetSID)
+            local target = player.GetBySteamID64(targetSID)
             if not IsPlayer(target) then return end
 
             return roleFileName, groupingRole, roleColor, name, target:Nick(), LANG.GetTranslation("score_shadow_following")
@@ -285,7 +285,7 @@ if CLIENT then
 
     AddHook("TTTTargetIDPlayerText", "Shadow_TTTTargetIDPlayerText", function(ent, client, text, clr, secondaryText)
         if IsPlayer(ent) then
-            if client:IsActiveShadow() and ent:EnhancedSteamID64() == client:GetNWString("ShadowTarget", "") then
+            if client:IsActiveShadow() and ent:SteamID64() == client:GetNWString("ShadowTarget", "") then
                 if text == nil then
                     return LANG.GetTranslation("shadow_target"), ROLE_COLORS_RADAR[ROLE_SHADOW]
                 else
@@ -300,13 +300,13 @@ if CLIENT then
     ----------------
 
     AddHook("TTTScoreboardPlayerRole", "Shadow_TTTScoreboardPlayerRole", function(ply, cli, c, roleStr)
-        if cli:IsActiveShadow() and ply:EnhancedSteamID64() == cli:GetNWString("ShadowTarget", "") then
+        if cli:IsActiveShadow() and ply:SteamID64() == cli:GetNWString("ShadowTarget", "") then
             return c, roleStr, ROLE_SHADOW
         end
     end)
 
     AddHook("TTTScoreboardPlayerName", "Shadow_TTTScoreboardPlayerName", function(ply, cli, text)
-        if cli:IsActiveShadow() and ply:EnhancedSteamID64() == cli:GetNWString("ShadowTarget", "") then
+        if cli:IsActiveShadow() and ply:SteamID64() == cli:GetNWString("ShadowTarget", "") then
             return ply:Nick() .. "(" .. LANG.GetTranslation("shadow_target") .. ")"
         end
     end)
@@ -323,7 +323,7 @@ if CLIENT then
             local sid64 = client:GetNWString("ShadowTarget", "")
             if sid64 == "" then return end
 
-            local target = player.GetByEnhancedSteamID64(sid64)
+            local target = player.GetBySteamID64(sid64)
             if not IsValid(target) then return end
 
             local ent = nil
@@ -479,7 +479,7 @@ if CLIENT then
     AddHook("Think", "Shadow_Think", function()
         local ply = LocalPlayer()
         if ply:IsActiveShadow() then
-            targetPlayer = targetPlayer or player.GetByEnhancedSteamID64(ply:GetNWString("ShadowTarget", ""))
+            targetPlayer = targetPlayer or player.GetBySteamID64(ply:GetNWString("ShadowTarget", ""))
             if IsValid(targetPlayer) then
                 if targetPlayer:IsActive() then
                     local alive_radius = GetGlobalFloat("ttt_shadow_alive_radius", 419.92)
