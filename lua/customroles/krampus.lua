@@ -79,8 +79,6 @@ end
 
 if CLIENT then
 
-    -- TODO: Win title (primary and secondary)
-
     ------------------
     -- TRANSLATIONS --
     ------------------
