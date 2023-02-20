@@ -29,6 +29,7 @@ ROLE.shop = {}
 local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
 local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
 local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
+local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
 
 ROLE.convars = {}
 
@@ -46,6 +47,10 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_target_damage_bonus",
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 2
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_is_monster",
+    type = ROLE_CONVAR_TYPE_BOOL
 })
 
 RegisterRole(ROLE)
@@ -68,14 +73,13 @@ if SERVER then
     -- TODO: Win delay (if they aren't winning and there is a naughty player left alive). Should probably show a message/timer to Krampus during this delay. Make length a convar
     -- TODO: Alert player when they become naughty (with convar)
     -- TODO: Alert traitors when there is a Krampus (with convar)
-    -- TODO: Move to Monster team (with convar)
 
     -----------------------
     -- TARGET ASSIGNMENT --
     -----------------------
 
     -- TODO: Target selection
-    local function UpdateKrampusTarget(ply)
+    local function UpdateKrampusTargets(ply)
     end
 
     -- Clear the krampus target information when the next round starts
@@ -95,14 +99,14 @@ if SERVER then
         local attackertarget = attacker:GetNWString("KrampusTarget", "")
         if IsPlayer(attacker) and attacker:IsKrampus() and ply ~= attacker and ply:SteamID64() == attackertarget then
             attacker.KrampusNaughtyKilled = (attacker.KrampusNaughtyKilled or 0) + 1
-
-            UpdateKrampusTarget(ply)
         end
+
+        UpdateKrampusTargets(ply)
     end)
 
     -- Update krampus target when a player disconnects
     AddHook("PlayerDisconnected", "Krampus_Target_PlayerDisconnected", function(ply)
-        UpdateKrampusTarget(ply)
+        UpdateKrampusTargets(ply)
     end)
 
     ------------
@@ -321,3 +325,13 @@ if CLIENT then
         end
     end)
 end
+
+-------------------
+-- ROLE FEATURES --
+-------------------
+
+hook.Add("TTTUpdateRoleState", "Krampus_Team_TTTUpdateRoleState", function()
+    local is_monster = krampus_is_monster:GetBool()
+    MONSTER_ROLES[ROLE_KRAMPUS] = is_monster
+    INDEPENDENT_ROLES[ROLE_KRAMPUS] = not is_monster
+end)
