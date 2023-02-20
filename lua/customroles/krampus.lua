@@ -28,6 +28,7 @@ ROLE.shop = {}
 
 local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
 local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
+local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
 
 ROLE.convars = {}
 
@@ -37,31 +38,25 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_show_target_icon",
     type = ROLE_CONVAR_TYPE_BOOL
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_target_vision_enable",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_target_damage_bonus",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 2
+})
 
 RegisterRole(ROLE)
 
 -- TODO: Carry weapon?
 -- TODO: Custom melee weapon?
--- TODO: Move role state (copy from Assassin)
+-- TODO: Move role state (copy from Krampus)
 
 if SERVER then
     AddCSLuaFile()
 
-    -----------------------
-    -- TARGET ASSIGNMENT --
-    -----------------------
-
-    -- Clear the krampus target information when the next round starts
-    AddHook("TTTPrepareRound", "Krampus_Target_PrepareRound", function()
-        for _, v in pairs(GetAllPlayers()) do
-            v:SetNWString("KrampusTarget", "")
-            v:SetNWBool("KrampusNaughty", false)
-            v:SetNWBool("KrampusComplete", false)
-            timer.Remove(v:Nick() .. "KrampusTarget")
-        end
-    end)
-
-    -- TODO: Target selection
     -- TODO: What makes a player naughty?
              -- Traitors (if enabled)
              -- Players who damage (if enabled) or kill innocents
@@ -69,12 +64,86 @@ if SERVER then
              -- Players who damage jesters
              -- Monsters (if Krampus is independent)
              -- Independents (other than Krampus themselves)
-    -- TODO: Damage bonus (with convar)
     -- TODO: Win condition (primary if last alive, secondary if other win and no naughty players remain)
     -- TODO: Win delay (if they aren't winning and there is a naughty player left alive). Should probably show a message/timer to Krampus during this delay. Make length a convar
     -- TODO: Alert player when they become naughty (with convar)
     -- TODO: Alert traitors when there is a Krampus (with convar)
     -- TODO: Move to Monster team (with convar)
+
+    -----------------------
+    -- TARGET ASSIGNMENT --
+    -----------------------
+
+    -- TODO: Target selection
+    local function UpdateKrampusTarget(ply)
+    end
+
+    -- Clear the krampus target information when the next round starts
+    AddHook("TTTPrepareRound", "Krampus_Target_PrepareRound", function()
+        for _, v in pairs(GetAllPlayers()) do
+            v.KrampusNaughtyKilled = nil
+            v:SetNWString("KrampusTarget", "")
+            v:SetNWBool("KrampusNaughty", false)
+            -- TODO: Do we need this? v:SetNWBool("KrampusComplete", false)
+            timer.Remove(v:Nick() .. "KrampusTarget")
+        end
+    end)
+
+    AddHook("DoPlayerDeath", "Krampus_DoPlayerDeath", function(ply, attacker, dmginfo)
+        if not IsValid(ply) then return end
+
+        local attackertarget = attacker:GetNWString("KrampusTarget", "")
+        if IsPlayer(attacker) and attacker:IsKrampus() and ply ~= attacker and ply:SteamID64() == attackertarget then
+            attacker.KrampusNaughtyKilled = (attacker.KrampusNaughtyKilled or 0) + 1
+
+            UpdateKrampusTarget(ply)
+        end
+    end)
+
+    -- Update krampus target when a player disconnects
+    AddHook("PlayerDisconnected", "Krampus_Target_PlayerDisconnected", function(ply)
+        UpdateKrampusTarget(ply)
+    end)
+
+    ------------
+    -- DAMAGE --
+    ------------
+
+    AddHook("ScalePlayerDamage", "Krampus_ScalePlayerDamage", function(ply, hitgroup, dmginfo)
+        local att = dmginfo:GetAttacker()
+        -- Only apply damage scaling after the round starts
+        if IsPlayer(att) and GetRoundState() >= ROUND_ACTIVE and att:IsKrampus() and ply ~= att and not ply:IsJesterTeam() then
+            -- Krampus deals extra damage based on how many naughty players they have killed
+            local killed = att.KrampusNaughtyKilled or 0
+            local scale = krampus_target_damage_bonus * killed
+            dmginfo:ScaleDamage(1 + scale)
+        end
+    end)
+
+    -----------------------
+    -- PLAYER VISIBILITY --
+    -----------------------
+
+    -- Add the target player to the PVS for the krampus if highlighting or Kill icon are enabled
+    AddHook("SetupPlayerVisibility", "Krampus_SetupPlayerVisibility", function(ply)
+        if not ply:ShouldBypassCulling() then return end
+        if not ply:IsActiveKrampus() then return end
+        if not krampus_target_vision_enable:GetBool() and not krampus_show_target_icon:GetBool() then return end
+
+        local target_nick = ply:GetNWString("KrampusTarget", "")
+        for _, v in ipairs(GetAllPlayers()) do
+            if v:SteamID64() ~= target_nick then continue end
+            if ply:TestPVS(v) then continue end
+
+            local pos = v:GetPos()
+            if ply:IsOnScreen(pos) then
+                AddOriginToPVS(pos)
+            end
+
+            -- Krampus can only have one target so if we found them don't bother looping anymore
+            break
+        end
+    end)
 end
 
 if CLIENT then
@@ -83,7 +152,7 @@ if CLIENT then
     -- TRANSLATIONS --
     ------------------
 
-    hook.Add("Initialize", "Krampus_Translations_Initialize", function()
+    AddHook("Initialize", "Krampus_Translations_Initialize", function()
         -- Target
         LANG.AddToLanguage("english", "target_krampus_target", "TARGET")
     end)
