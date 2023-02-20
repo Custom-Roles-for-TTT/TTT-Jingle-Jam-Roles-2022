@@ -30,10 +30,10 @@ local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0
 local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
 local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
 local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
+local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
+local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
 
 ROLE.convars = {}
-
--- TODO: Damaging jesters is naughty
 
 TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_show_target_icon",
@@ -52,6 +52,14 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_is_monster",
     type = ROLE_CONVAR_TYPE_BOOL
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_warn",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_warn_all",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
 
 RegisterRole(ROLE)
 
@@ -66,13 +74,12 @@ if SERVER then
              -- Traitors (if enabled)
              -- Players who damage (if enabled) or kill innocents
              -- Players who damage Krampus
-             -- Players who damage jesters
+             -- Players who damage jesters (if enabled)
              -- Monsters (if Krampus is independent)
              -- Independents (other than Krampus themselves)
     -- TODO: Win condition (primary if last alive, secondary if other win and no naughty players remain)
     -- TODO: Win delay (if they aren't winning and there is a naughty player left alive). Should probably show a message/timer to Krampus during this delay. Make length a convar
     -- TODO: Alert player when they become naughty (with convar)
-    -- TODO: Alert traitors when there is a Krampus (with convar)
 
     -----------------------
     -- TARGET ASSIGNMENT --
@@ -147,6 +154,48 @@ if SERVER then
             -- Krampus can only have one target so if we found them don't bother looping anymore
             break
         end
+    end)
+
+    ------------------
+    -- ANNOUNCEMENT -- 
+    ------------------
+
+    -- Warn other players that there is a krampus
+    hook.Add("TTTBeginRound", "Krampus_Announce_TTTBeginRound", function()
+        if not krampus_warn:GetBool() then return end
+
+        timer.Simple(1.5, function()
+            local plys = GetAllPlayers()
+
+            local hasGlitch = false
+            local hasKrampus = false
+            for _, v in ipairs(plys) do
+                if v:IsGlitch() then
+                    hasGlitch = true
+                elseif v:IsKrampus() then
+                    hasKrampus = true
+                end
+            end
+
+            if not hasKrampus then return end
+
+            for _, v in ipairs(plys) do
+                local isTraitor = v:IsTraitorTeam()
+                -- Warn this player about the Krampus if they are a traitor or we are configured to warn everyone
+                if not v:IsKrampus() and (isTraitor or krampus_warn_all:GetBool()) then
+                    v:PrintMessage(HUD_PRINTTALK, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
+                    -- Only delay this if the player is a traitor and there is a glitch
+                    -- This gives time for the glitch warning to go away
+                    if isTraitor and hasGlitch then
+                        timer.Simple(3, function()
+                            v:PrintMessage(HUD_PRINTCENTER, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
+                        end)
+                    else
+                        v:PrintMessage(HUD_PRINTCENTER, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
+                    end
+                end
+            end
+        end)
     end)
 end
 
