@@ -65,21 +65,28 @@ RegisterRole(ROLE)
 
 -- TODO: Carry weapon?
 -- TODO: Custom melee weapon?
--- TODO: Move role state (copy from Krampus)
+-- TODO: Move role state (copy from Assassin)
 
 if SERVER then
     AddCSLuaFile()
 
-    -- TODO: What makes a player naughty?
-             -- Traitors (if enabled)
-             -- Players who damage (if enabled) or kill innocents
-             -- Players who damage Krampus
-             -- Players who damage jesters (if enabled)
-             -- Monsters (if Krampus is independent)
-             -- Independents (other than Krampus themselves)
-    -- TODO: Win condition (primary if last alive, secondary if other win and no naughty players remain)
     -- TODO: Win delay (if they aren't winning and there is a naughty player left alive). Should probably show a message/timer to Krampus during this delay. Make length a convar
-    -- TODO: Alert player when they become naughty (with convar)
+
+    -----------
+    -- KARMA --
+    -----------
+
+    -- Krampus has no karma, positive or negative
+    AddHook("TTTKarmaGivePenalty", "Krampus_TTTKarmaGivePenalty", function(ply, penalty, victim)
+        if IsPlayer(victim) and ply:IsKrampus() then
+            return true
+        end
+    end)
+    AddHook("TTTKarmaGiveReward", "Krampus_TTTKarmaGiveReward", function(ply, reward, victim)
+        if IsPlayer(victim) and ply:IsKrampus() then
+            return true
+        end
+    end)
 
     -----------------------
     -- TARGET ASSIGNMENT --
@@ -87,6 +94,14 @@ if SERVER then
 
     -- TODO: Target selection
     local function UpdateKrampusTargets(ply)
+        -- TODO: What makes a player naughty?
+             -- Traitors (if enabled)
+             -- Players who damage (if enabled) or kill innocents
+             -- Players who damage Krampus
+             -- Players who damage jesters (if enabled)
+             -- Monsters (if Krampus is independent)
+             -- Independents (other than Krampus themselves)
+        -- TODO: Alert player when they become naughty (with convar)
     end
 
     -- Clear the krampus target information when the next round starts
@@ -161,7 +176,7 @@ if SERVER then
     ------------------
 
     -- Warn other players that there is a krampus
-    hook.Add("TTTBeginRound", "Krampus_Announce_TTTBeginRound", function()
+    AddHook("TTTBeginRound", "Krampus_Announce_TTTBeginRound", function()
         if not krampus_warn:GetBool() then return end
 
         timer.Simple(1.5, function()
@@ -197,6 +212,36 @@ if SERVER then
             end
         end)
     end)
+
+    ----------------
+    -- WIN CHECKS --
+    ----------------
+
+    AddHook("TTTCheckForWin", "Krampus_TTTCheckForWin", function()
+        local krampus_alive = false
+        local other_alive = false
+        for _, v in ipairs(GetAllPlayers()) do
+            if v:Alive() and v:IsTerror() then
+                if v:IsKrampus() then
+                    krampus_alive = true
+                elseif not v:ShouldActLikeJester() then
+                    other_alive = true
+                end
+            end
+        end
+
+        if krampus_alive and not other_alive then
+            return WIN_KRAMPUS
+        end
+    end)
+
+    AddHook("TTTPrintResultMessage", "Krampus_TTTPrintResultMessage", function(type)
+        if type == WIN_KRAMPUS then
+            LANG.Msg("win_krampus", { role = ROLE_STRINGS[ROLE_KRAMPUS] })
+            ServerLog("Result: " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " wins.\n")
+            return true
+        end
+    end)
 end
 
 if CLIENT then
@@ -208,6 +253,10 @@ if CLIENT then
     AddHook("Initialize", "Krampus_Translations_Initialize", function()
         -- Target
         LANG.AddToLanguage("english", "target_krampus_target", "TARGET")
+
+        -- Win conditions
+        LANG.AddToLanguage("english", "win_krampus", "All the naughty players were killed by {role}!")
+        LANG.AddToLanguage("english", "ev_win_krampus", "The {role} eliminated all the naughty players and won the round!")
     end)
 
     ---------------
@@ -364,6 +413,22 @@ if CLIENT then
         TableInsert(secondary_wins, ROLE_KRAMPUS)
     end)
 
+    ------------
+    -- EVENTS --
+    ------------
+
+    hook.Add("TTTEventFinishText", "Krampus_TTTEventFinishText", function(e)
+        if e.win == WIN_KRAMPUS then
+            return LANG.GetParamTranslation("ev_win_krampus", { role = string.lower(ROLE_STRINGS[ROLE_KRAMPUS]) })
+        end
+    end)
+
+    hook.Add("TTTEventFinishIconText", "Krampus_TTTEventFinishIconText", function(e, win_string, role_string)
+        if e.win == WIN_KRAMPUS then
+            return win_string, ROLE_STRINGS[ROLE_KRAMPUS]
+        end
+    end)
+
     --------------
     -- TUTORIAL --
     --------------
@@ -379,7 +444,7 @@ end
 -- ROLE FEATURES --
 -------------------
 
-hook.Add("TTTUpdateRoleState", "Krampus_Team_TTTUpdateRoleState", function()
+AddHook("TTTUpdateRoleState", "Krampus_Team_TTTUpdateRoleState", function()
     local is_monster = krampus_is_monster:GetBool()
     MONSTER_ROLES[ROLE_KRAMPUS] = is_monster
     INDEPENDENT_ROLES[ROLE_KRAMPUS] = not is_monster
