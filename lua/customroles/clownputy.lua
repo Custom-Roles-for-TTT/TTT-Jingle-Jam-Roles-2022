@@ -1,3 +1,12 @@
+local hook = hook
+local ipairs = ipairs
+local math = math
+local net = net
+local pairs = pairs
+local player = player
+local table = table
+local util = util
+
 local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
 local TableInsert = table.insert
