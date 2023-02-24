@@ -1,10 +1,16 @@
+local hook = hook
+local ipairs = ipairs
+local math = math
+local pairs = pairs
+local player = player
+local table = table
+local timer = timer
+local util = util
+
 local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
+local MathMax = math.max
 local TableInsert = table.insert
-local TableShuffle = table.Shuffle
-local StringLower = string.lower
-local StringUpper = string.upper
-local MathRandom = math.random
 
 local ROLE = {}
 
@@ -29,6 +35,7 @@ ROLE.shop = {}
 local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
 local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
 local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
+local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The nnumber of seconds to delay a team's win if there are naughty players left", 0, 600)
 local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
 local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
 local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
@@ -47,6 +54,11 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_target_damage_bonus",
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 2
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_win_delay_time",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 0
 })
 TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_is_monster",
@@ -69,8 +81,6 @@ RegisterRole(ROLE)
 
 if SERVER then
     AddCSLuaFile()
-
-    -- TODO: Win delay (if they aren't winning and there is a naughty player left alive). Should probably show a message/timer to Krampus during this delay. Make length a convar
 
     -----------
     -- KARMA --
@@ -110,6 +120,7 @@ if SERVER then
             v.KrampusNaughtyKilled = nil
             v:SetNWString("KrampusTarget", "")
             v:SetNWBool("KrampusNaughty", false)
+            v:SetNWFloat("KrampusDelayEnd", 0)
             -- TODO: Do we need this? v:SetNWBool("KrampusComplete", false)
             timer.Remove(v:Nick() .. "KrampusTarget")
         end
@@ -217,6 +228,10 @@ if SERVER then
     -- WIN CHECKS --
     ----------------
 
+    hook.Add("Initialize", "Krampus_Initialize", function()
+        WIN_KRAMPUS = GenerateNewWinID(ROLE_KRAMPUS)
+    end)
+
     AddHook("TTTCheckForWin", "Krampus_TTTCheckForWin", function()
         local krampus_alive = false
         local other_alive = false
@@ -235,6 +250,49 @@ if SERVER then
         end
     end)
 
+    -- Delay another team's win if the Krampus is alive and there are naughty players left
+    local delayEnd = nil
+    local function HandleKrampusWinBlock(win_type)
+        if win_type == WIN_NONE or win_type == WIN_KRAMPUS then return win_type end
+
+        local win_delay_time = krampus_win_delay_time:GetInt()
+        if win_delay_time <= 0 then return win_type end
+
+        local krampus = player.GetLivingRole(ROLE_KRAMPUS)
+        if not IsPlayer(krampus) then return win_type end
+
+        -- Check for naughty players
+        local hasNaughty = false
+        for _, p in ipairs(GetAllPlayers()) do
+            if not p:Alive() or p:IsSpec() then continue end
+            if p == krampus then continue end
+            if p:GetNWBool("KrampusNaughty", false) then
+                hasNaughty = true
+                break
+            end
+        end
+
+        if not hasNaughty then return end
+
+        -- If we haven't delayed before, start the delay
+        if delayEnd == nil then
+            delayEnd = CurTime() + win_delay_time
+            krampus:SetNWFloat("KrampusDelayEnd", delayEnd)
+        end
+
+        -- If the delay has already passed, let the winners win
+        if CurTime() >= delayEnd then
+            return win_type
+        end
+
+        -- Otherwise block the win
+        return WIN_NONE
+    end
+
+    AddHook("TTTWinCheckBlocks", "Krampus_TTTWinCheckBlocks", function(win_blocks)
+        table.insert(win_blocks, HandleKrampusWinBlock)
+    end)
+
     AddHook("TTTPrintResultMessage", "Krampus_TTTPrintResultMessage", function(type)
         if type == WIN_KRAMPUS then
             LANG.Msg("win_krampus", { role = ROLE_STRINGS[ROLE_KRAMPUS] })
@@ -251,6 +309,9 @@ if CLIENT then
     ------------------
 
     AddHook("Initialize", "Krampus_Translations_Initialize", function()
+        -- HUD
+        LANG.AddToLanguage("english", "krampus_hud", "Time remaining to hunt naughty players: {time}")
+
         -- Target
         LANG.AddToLanguage("english", "target_krampus_target", "TARGET")
 
@@ -393,6 +454,10 @@ if CLIENT then
     -- WIN CHECKS --
     ----------------
 
+    hook.Add("TTTSyncWinIDs", "Krampus_TTTSyncWinIDs", function()
+        WIN_KRAMPUS = WINS_BY_ROLE[ROLE_KRAMPUS]
+    end)
+
     AddHook("TTTScoringWinTitle", "Krampus_TTTScoringWinTitle", function(wintype, wintitles, title, secondary_win_role)
         if wintype == WIN_KRAMPUS then
             return { txt = "hilite_win_role_singular", params = { role = string.upper(ROLE_STRINGS[ROLE_KRAMPUS]) }, c = ROLE_COLORS[ROLE_KRAMPUS] }
@@ -429,14 +494,50 @@ if CLIENT then
         end
     end)
 
+    ---------
+    -- HUD --
+    ---------
+
+    hook.Add("TTTHUDInfoPaint", "Krampus_TTTHUDInfoPaint", function(ply, label_left, label_top, active_labels)
+        if not ply:IsKrampus() then return end
+
+        local hide_role = false
+        if ConVarExists("ttt_hide_role") then
+            hide_role = GetConVar("ttt_hide_role"):GetBool()
+        end
+
+        if hide_role then return end
+
+        local delayEnd = ply:GetNWFloat("KrampusDelayEnd", -1)
+        if delayEnd <= 0 then return end
+
+        local remaining = MathMax(0, delayEnd - CurTime())
+        if remaining <= 0 then return end
+
+        surface.SetFont("TabLarge")
+        surface.SetTextColor(255, 255, 255, 230)
+
+        local text = LANG.GetParamTranslation("krampus_hud", { time = util.SimpleTime(remaining, "%02i:%02i") })
+        local _, h = surface.GetTextSize(text)
+
+        -- Move this up based on how many other labels here are
+        label_top = label_top + (20 * #active_labels)
+
+        surface.SetTextPos(label_left, ScrH() - label_top - h)
+        surface.DrawText(text)
+
+        -- Track that the label was added so others can position accurately
+        table.insert(active_labels, "krampus")
+    end)
+
     --------------
     -- TUTORIAL --
     --------------
 
     AddHook("TTTTutorialRoleText", "Krampus_TTTTutorialRoleText", function(role, titleLabel)
-        if role == ROLE_KRAMPUS then
-            -- TODO
-        end
+        if role ~= ROLE_KRAMPUS then return end
+
+        -- TODO
     end)
 end
 
