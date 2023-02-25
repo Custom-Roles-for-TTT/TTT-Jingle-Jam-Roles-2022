@@ -11,6 +11,7 @@ local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
 local MathMax = math.max
 local TableInsert = table.insert
+local TableShuffle = table.Shuffle
 
 local ROLE = {}
 
@@ -151,35 +152,6 @@ if SERVER then
         end
     end
 
-    local function AssignKrampusTarget(ply, start, delay)
-        -- TODO: Choose a random naughty player as the target
-        -- TODO: If there aren't any naughty players remaining, tell the Krampus
-    end
-
-    local function UpdateKrampusTargets(ply)
-        for _, v in pairs(GetAllPlayers()) do
-            local krampustarget = v:GetNWString("KrampusTarget", "")
-            if v:IsKrampus() and ply:SteamID64() == krampustarget then
-                -- Reset the target to clear the target overlay from the scoreboard
-                v:SetNWString("KrampusTarget", "")
-
-                local delay = krampus_next_target_delay:GetFloat()
-                -- Delay giving the next target if we're configured to do so
-                if delay > 0 then
-                    if v:Alive() and not v:IsSpec() then
-                        v:PrintMessage(HUD_PRINTCENTER, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
-                        v:PrintMessage(HUD_PRINTTALK, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
-                    end
-                    timer.Create(v:Nick() .. "KrampusTarget", delay, 1, function()
-                        AssignKrampusTarget(v, false, true)
-                    end)
-                else
-                    AssignKrampusTarget(v, false, false)
-                end
-            end
-        end
-    end
-
     local function ValidTarget(ply, role)
         -- If the player is naughty then they are a valid target
         if ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
@@ -206,6 +178,78 @@ if SERVER then
         end
 
         return false
+    end
+
+    local function AssignKrampusTarget(ply, start, delay)
+        -- Don't let non-players or non-krampuses to get another target
+        -- And don't assign targets if the round isn't currently running
+        if not IsPlayer(ply) or GetRoundState() > ROUND_ACTIVE or not ply:IsKrampus() then
+            return
+        end
+
+        -- Reset the target to empty in case there are no valid targets
+        -- Keep track of what their target was so we can tell them a new target was identified
+        local target = ply:GetNWString("KrampusTarget", "")
+        ply:SetNWString("KrampusTarget", "")
+
+        local naughtyPlayers = {}
+        for _, p in ipairs(GetAllPlayers()) do
+            if not p:Alive() or p:IsSpec() then continue end
+            if p == ply then continue end
+
+            if ValidTarget(p, p:GetRole()) then
+                TableInsert(naughtyPlayers, p)
+            end
+        end
+
+        local targetMessage = ""
+        if #naughtyPlayers == 0 then
+            targetMessage = "No further targets available. Keep an eye out for naughty activity..."
+        else
+            TableShuffle(naughtyPlayers)
+
+            local naughtyPlayer = naughtyPlayers[1]
+            -- If this isn't the beginning and they didn't have a target already
+            -- that means they were waiting for someone to be naughty.
+            -- Let them know it finally happened!
+            if not start and #target == 0 then
+                targetMessage = "Naughty activity detected... "
+            end
+            targetMessage = targetMessage .. "Your target is " .. player.GetBySteamID64(naughtyPlayer):Nick() .. "."
+        end
+
+        if ply:Alive() and not ply:IsSpec() then
+            -- Don't show "target eliminated" if this is their first target or they were waiting for someone to be naughty
+            if #target == 0 and not delay and not start then targetMessage = "Target eliminated. " .. targetMessage end
+            ply:PrintMessage(HUD_PRINTCENTER, targetMessage)
+            ply:PrintMessage(HUD_PRINTTALK, targetMessage)
+        end
+    end
+
+    local function UpdateKrampusTargets(ply)
+        for _, v in pairs(GetAllPlayers()) do
+            local krampustarget = v:GetNWString("KrampusTarget", "")
+            if v:IsKrampus() and ply:SteamID64() == krampustarget then
+                -- Reset the target to clear the target overlay from the scoreboard
+                -- Keep track of what their target was so we can tell them a new target was identified
+                local target = ply:GetNWString("KrampusTarget", "")
+                v:SetNWString("KrampusTarget", "")
+
+                local delay = krampus_next_target_delay:GetFloat()
+                -- Delay giving the next target if we're configured to do so and they weren't waiting for a new target
+                if delay > 0 and #target > 0 then
+                    if v:Alive() and not v:IsSpec() then
+                        v:PrintMessage(HUD_PRINTCENTER, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
+                        v:PrintMessage(HUD_PRINTTALK, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
+                    end
+                    timer.Create(v:Nick() .. "KrampusTarget", delay, 1, function()
+                        AssignKrampusTarget(v, false, true)
+                    end)
+                else
+                    AssignKrampusTarget(v, false, false)
+                end
+            end
+        end
     end
 
     AddHook("DoPlayerDeath", "Krampus_DoPlayerDeath", function(ply, attacker, dmginfo)
