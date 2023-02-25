@@ -269,7 +269,7 @@ if SERVER then
         if not IsPlayer(att) or ent == att then return end
 
         -- Damaging any jester or innocent makes you naughty, if the settings are enabled
-        if ent:IsJesterTeam() and krampus_naughty_jester_damage:GetBool() then
+        if ent:IsJesterTeam() and ent:ShouldActLikeJester() and krampus_naughty_jester_damage:GetBool() then
             MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
         elseif ent:IsInnocentTeam() and krampus_naughty_innocent_damage:GetBool() then
             MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
