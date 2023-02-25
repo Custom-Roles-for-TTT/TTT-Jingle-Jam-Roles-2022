@@ -77,7 +77,6 @@ RegisterRole(ROLE)
 
 -- TODO: Carry weapon?
 -- TODO: Custom melee weapon?
--- TODO: Move role state (copy from Assassin)
 
 if SERVER then
     AddCSLuaFile()
@@ -102,8 +101,7 @@ if SERVER then
     -- TARGET ASSIGNMENT --
     -----------------------
 
-    -- TODO: Target selection
-    local function UpdateKrampusTargets(ply)
+    function AssignKrampusTarget(ply, start, delay)
         -- TODO: What makes a player naughty?
              -- Traitors (if enabled)
              -- Players who damage (if enabled) or kill innocents
@@ -114,17 +112,14 @@ if SERVER then
         -- TODO: Alert player when they become naughty (with convar)
     end
 
-    -- Clear the krampus target information when the next round starts
-    AddHook("TTTPrepareRound", "Krampus_Target_PrepareRound", function()
-        for _, v in pairs(GetAllPlayers()) do
-            v.KrampusNaughtyKilled = nil
-            v:SetNWString("KrampusTarget", "")
-            v:SetNWBool("KrampusNaughty", false)
-            v:SetNWFloat("KrampusDelayEnd", 0)
-            -- TODO: Do we need this? v:SetNWBool("KrampusComplete", false)
-            timer.Remove(v:Nick() .. "KrampusTarget")
-        end
-    end)
+    local function UpdateKrampusTargets(ply)
+        -- TODO:
+    end
+
+    local function ValidTarget(role)
+        -- TODO: 
+        return true
+    end
 
     AddHook("DoPlayerDeath", "Krampus_DoPlayerDeath", function(ply, attacker, dmginfo)
         if not IsValid(ply) then return end
@@ -137,9 +132,67 @@ if SERVER then
         UpdateKrampusTargets(ply)
     end)
 
+    ROLE_MOVE_ROLE_STATE[ROLE_KRAMPUS] = function(ply, target, keep_on_source)
+        local krampusComplete = ply:GetNWBool("KrampusComplete", false)
+        if krampusComplete then
+            if not keep_on_source then ply:SetNWBool("KrampusComplete", false) end
+            target:SetNWBool("KrampusComplete", true)
+        end
+
+        target:SetNWBool("KrampusNaughty", false)
+
+        local krampusTarget = ply:GetNWString("KrampusTarget", "")
+        if #krampusTarget > 0 then
+            if not keep_on_source then ply:SetNWString("KrampusTarget", "") end
+            target:SetNWString("KrampusTarget", krampusTarget)
+            local target_nick = player.GetBySteamID64(krampusTarget):Nick()
+            target:PrintMessage(HUD_PRINTCENTER, "You have learned that your predecessor's target was " .. target_nick)
+            target:PrintMessage(HUD_PRINTTALK, "You have learned that your predecessor's target was " .. target_nick)
+        elseif ply:IsKrampus() then
+            -- If the player we're taking the role state from was an krampus but they didn't have a target, try to assign a target to this player
+            -- Use a slight delay to let the role change go through first just in case
+            timer.Simple(0.25, function()
+                AssignKrampusTarget(target, true)
+            end)
+        end
+    end
+    ROLE_ON_ROLE_ASSIGNED[ROLE_KRAMPUS] = function(ply)
+        AssignKrampusTarget(ply, true, false)
+    end
+
+    local function ResetKrampusState(ply)
+        ply.KrampusNaughtyKilled = nil
+        ply:SetNWString("KrampusTarget", "")
+        ply:SetNWBool("KrampusNaughty", false)
+        ply:SetNWFloat("KrampusDelayEnd", 0)
+        ply:SetNWBool("KrampusComplete", false)
+        timer.Remove(ply:Nick() .. "KrampusTarget")
+    end
+
+    -- Clear the krampus target information when the next round starts
+    AddHook("TTTPrepareRound", "Krampus_Target_PrepareRound", function()
+        for _, v in pairs(GetAllPlayers()) do
+            ResetKrampusState(v)
+        end
+    end)
+
     -- Update krampus target when a player disconnects
     AddHook("PlayerDisconnected", "Krampus_Target_PlayerDisconnected", function(ply)
         UpdateKrampusTargets(ply)
+    end)
+
+    AddHook("TTTPlayerRoleChanged", "Krampus_Target_TTTPlayerRoleChanged", function(ply, oldRole, newRole)
+        if not ply:Alive() or ply:IsSpec() then return end
+
+        -- If this player is no longer a krampus, clear out thier target
+        if oldRole == ROLE_KRAMPUS and oldRole ~= newRole then
+            ResetKrampusState(ply)
+        end
+
+        -- If this player's role could have been a valid target and definitely isn't anymore, update any krampus that has them as a target
+        if ValidTarget(oldRole) and not ValidTarget(newRole) then
+            UpdateKrampusTargets(ply)
+        end
     end)
 
     ------------
