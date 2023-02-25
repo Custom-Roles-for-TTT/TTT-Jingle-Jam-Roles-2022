@@ -35,10 +35,14 @@ ROLE.shop = {}
 local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
 local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
 local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
-local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The nnumber of seconds to delay a team's win if there are naughty players left", 0, 600)
+local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The number of seconds to delay a team's win if there are naughty players left", 0, 600)
 local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
 local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
 local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
+local krampus_naughty_notify = CreateConVar("ttt_krampus_naughty_notify", "0")
+local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1")
+local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1")
+local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1")
 
 ROLE.convars = {}
 
@@ -72,8 +76,29 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_warn_all",
     type = ROLE_CONVAR_TYPE_BOOL
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_naughty_notify",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_naughty_traitors",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_naughty_innocent_damage",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_naughty_jester_damage",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
 
 RegisterRole(ROLE)
+
+KRAMPUS_NAUGHTY_NONE = 0
+KRAMPUS_NAUGHTY_TEAM = 1
+KRAMPUS_NAUGHTY_DAMAGE = 2
+KRAMPUS_NAUGHTY_KILL = 3
 
 -- TODO: Carry weapon?
 -- TODO: Custom melee weapon?
@@ -101,35 +126,93 @@ if SERVER then
     -- TARGET ASSIGNMENT --
     -----------------------
 
-    function AssignKrampusTarget(ply, start, delay)
-        -- TODO: What makes a player naughty?
-             -- Traitors (if enabled)
-             -- Players who damage (if enabled) or kill innocents
-             -- Players who damage Krampus
-             -- Players who damage jesters (if enabled)
-             -- Monsters (if Krampus is independent)
-             -- Independents (other than Krampus themselves)
-        -- TODO: Alert player when they become naughty (with convar)
+    local function MarkPlayerNaughty(ply, naughty_type, start)
+        ply:SetNWInt("KrampusNaughty", naughty_type)
+
+        -- Alert players when they become naughty due to some reason other than being on a "naughty" team
+        if krampus_naughty_notify:GetBool() and naughty_type > KRAMPUS_NAUGHTY_TEAM then
+            local function NotifyNaughty()
+                local message = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " has decided that you are naughty... Be careful!"
+                ply:PrintMessage(HUD_PRINTCENTER, message)
+                ply:PrintMessage(HUD_PRINTTALK, message)
+            end
+
+            -- If this is the start of the round, wait a bit to show the messages so they don't get lost
+            if start then
+                timer.Simple(10, NotifyNaughty)
+            else
+                NotifyNaughty()
+            end
+        end
+    end
+
+    local function AssignKrampusTarget(ply, start, delay)
+        -- TODO:
     end
 
     local function UpdateKrampusTargets(ply)
         -- TODO:
     end
 
-    local function ValidTarget(role)
-        -- TODO: 
-        return true
+    local function ValidTarget(ply, role)
+        -- If the player is naughty then they are a valid target
+        if ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
+            return true
+        end
+
+        -- Passive roles are never naughty unless they've done something naughty
+        if ROLE_HAS_PASSIVE_WIN[role] then
+            return false
+        end
+
+        -- Non-Krampus (and non-passive) independents are naughty
+        if INDEPENDENT_ROLES[role] and role ~= ROLE_KRAMPUS then
+            return true
+        end
+
+        -- If Krampus is indepdendent then monsters are naughty
+        if not krampus_is_monster:GetBool() and MONSTER_ROLES[role] then
+            return true
+        end
+
+        if krampus_naughty_traitors:GetBool() and TRAITOR_ROLES[role] then
+            return true
+        end
+
+        return false
     end
 
     AddHook("DoPlayerDeath", "Krampus_DoPlayerDeath", function(ply, attacker, dmginfo)
         if not IsValid(ply) then return end
 
-        local attackertarget = attacker:GetNWString("KrampusTarget", "")
-        if IsPlayer(attacker) and attacker:IsKrampus() and ply ~= attacker and ply:SteamID64() == attackertarget then
-            attacker.KrampusNaughtyKilled = (attacker.KrampusNaughtyKilled or 0) + 1
+        if IsPlayer(attacker) then
+            if attacker:IsKrampus() then
+                local attackertarget = attacker:GetNWString("KrampusTarget", "")
+                if ply ~= attacker and ply:SteamID64() == attackertarget then
+                    attacker.KrampusNaughtyKilled = (attacker.KrampusNaughtyKilled or 0) + 1
+                end
+            elseif ply:IsInnocentTeam() then
+                MarkPlayerNaughty(attacker, KRAMPUS_NAUGHTY_KILL)
+            end
         end
 
         UpdateKrampusTargets(ply)
+    end)
+
+    AddHook("PostEntityTakeDamage", "Krampus_PostEntityTakeDamage", function(ent, dmginfo, taken)
+        if not taken then return end
+        if not dmginfo:IsBulletDamage() or not IsPlayer(ent) then return end
+        local att = dmginfo:GetAttacker()
+        if not IsPlayer(att) or ent == att then return end
+
+        -- Damaging any jester makes you naughty
+        if ent:IsJesterTeam() and krampus_naughty_jester_damage:GetBool() then
+            MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
+            return
+        elseif ent:IsInnocentTeam() and krampus_naughty_innocent_damage:GetBool() then
+            MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
+            return
+        end
     end)
 
     ROLE_MOVE_ROLE_STATE[ROLE_KRAMPUS] = function(ply, target, keep_on_source)
@@ -139,7 +222,7 @@ if SERVER then
             target:SetNWBool("KrampusComplete", true)
         end
 
-        target:SetNWBool("KrampusNaughty", false)
+        target:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
 
         local krampusTarget = ply:GetNWString("KrampusTarget", "")
         if #krampusTarget > 0 then
@@ -163,7 +246,7 @@ if SERVER then
     local function ResetKrampusState(ply)
         ply.KrampusNaughtyKilled = nil
         ply:SetNWString("KrampusTarget", "")
-        ply:SetNWBool("KrampusNaughty", false)
+        ply:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
         ply:SetNWFloat("KrampusDelayEnd", 0)
         ply:SetNWBool("KrampusComplete", false)
         timer.Remove(ply:Nick() .. "KrampusTarget")
@@ -190,9 +273,16 @@ if SERVER then
         end
 
         -- If this player's role could have been a valid target and definitely isn't anymore, update any krampus that has them as a target
-        if ValidTarget(oldRole) and not ValidTarget(newRole) then
+        if ValidTarget(ply, oldRole) and not ValidTarget(ply, newRole) then
             UpdateKrampusTargets(ply)
         end
+    end)
+
+    AddHook("TTTTurncoatTeamChanged", "Krampus_TTTTurncoatTeamChanged", function(ply, traitor)
+        if not IsPlayer(ply) then return end
+
+        -- Update any krampus targets since this player might be a threat now (or might not be anymore?)
+        UpdateKrampusTargets(ply)
     end)
 
     ------------
@@ -319,7 +409,7 @@ if SERVER then
         for _, p in ipairs(GetAllPlayers()) do
             if not p:Alive() or p:IsSpec() then continue end
             if p == krampus then continue end
-            if p:GetNWBool("KrampusNaughty", false) then
+            if p:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
                 hasNaughty = true
                 break
             end
@@ -521,8 +611,11 @@ if CLIENT then
         if wintype == WIN_KRAMPUS then return end
 
         for _, p in ipairs(GetAllPlayers()) do
+            -- Skip dead players
+            if not p:Alive() or p:IsSpec() then continue end
+
             -- If this player is naughty then Krampus did not succeed
-            if p:GetNWBool("KrampusNaughty", false) then
+            if p:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
                 return
             end
         end
