@@ -36,6 +36,7 @@ local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0
 local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
 local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
 local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The number of seconds to delay a team's win if there are naughty players left", 0, 600)
+local krampus_next_target_delay = CreateConVar("ttt_krampus_next_target_delay", "5", FCVAR_NONE, "The delay (in seconds) before an krampus is assigned their next target", 0, 30)
 local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
 local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
 local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
@@ -61,6 +62,11 @@ TableInsert(ROLE.convars, {
 })
 TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_win_delay_time",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 0
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_next_target_delay",
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 0
 })
@@ -96,9 +102,8 @@ TableInsert(ROLE.convars, {
 RegisterRole(ROLE)
 
 KRAMPUS_NAUGHTY_NONE = 0
-KRAMPUS_NAUGHTY_TEAM = 1
-KRAMPUS_NAUGHTY_DAMAGE = 2
-KRAMPUS_NAUGHTY_KILL = 3
+KRAMPUS_NAUGHTY_DAMAGE = 1
+KRAMPUS_NAUGHTY_KILL = 2
 
 -- TODO: Carry weapon?
 -- TODO: Custom melee weapon?
@@ -147,11 +152,32 @@ if SERVER then
     end
 
     local function AssignKrampusTarget(ply, start, delay)
-        -- TODO:
+        -- TODO: Choose a random naughty player as the target
+        -- TODO: If there aren't any naughty players remaining, tell the Krampus
     end
 
     local function UpdateKrampusTargets(ply)
-        -- TODO:
+        for _, v in pairs(GetAllPlayers()) do
+            local krampustarget = v:GetNWString("KrampusTarget", "")
+            if v:IsKrampus() and ply:SteamID64() == krampustarget then
+                -- Reset the target to clear the target overlay from the scoreboard
+                v:SetNWString("KrampusTarget", "")
+
+                local delay = krampus_next_target_delay:GetFloat()
+                -- Delay giving the next target if we're configured to do so
+                if delay > 0 then
+                    if v:Alive() and not v:IsSpec() then
+                        v:PrintMessage(HUD_PRINTCENTER, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
+                        v:PrintMessage(HUD_PRINTTALK, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
+                    end
+                    timer.Create(v:Nick() .. "KrampusTarget", delay, 1, function()
+                        AssignKrampusTarget(v, false, true)
+                    end)
+                else
+                    AssignKrampusTarget(v, false, false)
+                end
+            end
+        end
     end
 
     local function ValidTarget(ply, role)
@@ -216,12 +242,6 @@ if SERVER then
     end)
 
     ROLE_MOVE_ROLE_STATE[ROLE_KRAMPUS] = function(ply, target, keep_on_source)
-        local krampusComplete = ply:GetNWBool("KrampusComplete", false)
-        if krampusComplete then
-            if not keep_on_source then ply:SetNWBool("KrampusComplete", false) end
-            target:SetNWBool("KrampusComplete", true)
-        end
-
         target:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
 
         local krampusTarget = ply:GetNWString("KrampusTarget", "")
@@ -248,7 +268,6 @@ if SERVER then
         ply:SetNWString("KrampusTarget", "")
         ply:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
         ply:SetNWFloat("KrampusDelayEnd", 0)
-        ply:SetNWBool("KrampusComplete", false)
         timer.Remove(ply:Nick() .. "KrampusTarget")
     end
 
