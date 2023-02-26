@@ -1,7 +1,6 @@
 AddCSLuaFile()
 
 local IsValid = IsValid
-local math = math
 local util = util
 
 if CLIENT then
@@ -34,7 +33,6 @@ SWEP.AllowDrop = false
 SWEP.IsSilent = false
 
 SWEP.EntHolding = nil
-SWEP.CarryHack = nil
 
 -- Pull out faster than standard guns
 SWEP.DeploySpeed = 2
@@ -47,40 +45,24 @@ function SWEP:Initialize()
     return self.BaseClass.Initialize(self)
 end
 
-if SERVER then
-    function SWEP:CheckValidity()
-        if not IsValid(self.EntHolding) or not IsValid(self.CarryHack) then
-            -- if one of them is not valid but another is non-nil...
-            if self.EntHolding or self.CarryHack then
-                self:Reset()
-            end
-
-            return false
-        else
-            return true
-        end
-    end
-
-    function SWEP:Think()
-        self.BaseClass.Think(self)
-        if not self:CheckValidity() then return end
+function SWEP:Reset()
+    if IsValid(self.EntHolding) then
+        self.EntHolding:SetParent(nil)
+        self.EntHolding:SetMoveType(self.EntProps.MoveType)
+        self.EntHolding:SetSolid(self.EntProps.Solid)
 
         local owner = self:GetOwner()
-        -- TODO: Fix position so it doesn't look like the player is floating
-        self.CarryHack:SetPos(owner:EyePos() + owner:GetAimVector() * 70)
-        self.CarryHack:SetAngles(owner:GetAngles())
-    end
-end
-
-function SWEP:Reset()
-    SafeRemoveEntity(self.CarryHack)
-
-    if IsValid(self.EntHolding) then
-        -- TODO: Undo whatever we did to the player
+        -- Move them a bit away from where they were so they don't get stuck on the krampus
+        local currentPos = owner:GetPos() + owner:GetAimVector() * 70
+        -- Don't let them get stuck in the ground
+        if currentPos.z < 0 then
+            currentPos.z = 5
+        end
+        -- TODO: Sometimes they get stuck in the player
+        self.EntHolding:SetPos(currentPos)
     end
 
     self.EntHolding = nil
-    self.CarryHack = nil
 end
 
 function SWEP:Pickup(ent)
@@ -93,44 +75,23 @@ function SWEP:Pickup(ent)
     local owner = self:GetOwner()
 
     self.EntHolding = ent
-    self.CarryHack = ents.Create("npc_kleiner")
+    ent:SetParent(owner)
+    -- TODO: The position isn't consistent when the player looks around. Looking up or down seems to move the held player closer and further
+    --ent:SetLocalPos(Vector(0, 10, 0))
+    self.EntProps = {
+        MoveType = ent:GetMoveType(),
+        Solid = ent:GetSolid()
+    }
+    ent:SetMoveType(MOVETYPE_NONE)
+    ent:SetSolid(SOLID_NONE)
 
-    -- Copy what the target player looks like
-    self.CarryHack:SetModel(ent:GetModel())
-    self.CarryHack:SetSkin(ent:GetSkin())
-    for _, value in pairs(ent:GetBodyGroups()) do
-        self.CarryHack:SetBodygroup(value.id, ent:GetBodygroup(value.id))
-    end
-    self.CarryHack:SetColor(ent:GetColor())
-
-    -- Make them face the same way as the person carrying them
-    self.CarryHack:SetAngles(owner:GetAngles())
-
-    -- TODO: Fix position so it doesn't look like the player is floating
-    self.CarryHack:SetPos(owner:EyePos() + owner:GetAimVector() * 70)
-
-    self.CarryHack:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
-    self.CarryHack:SetSolid(SOLID_NONE)
-    self.CarryHack:Spawn()
-    self.CarryHack:Activate()
-
-    local phys = self.CarryHack:GetPhysicsObject()
-    if IsValid(phys) then
-        phys:SetMass(200)
-        phys:SetDamping(0, 1000)
-        phys:EnableGravity(false)
-        phys:EnableCollisions(false)
-        phys:EnableMotion(false)
-        phys:AddGameFlag(FVPHYSICS_PLAYER_HELD)
-    end
-
-    -- TODO: Prevent the held player from moving, aiming, shooting, etc.
-    -- TODO: Parent the player to the entity so they see through it's eyes
-    -- TODO: Hide the player's actual body
+    -- TODO: Prevent the held player from aiming, shooting, etc.
     -- TODO: Show UI for the held player to struggle
 end
 
 function SWEP:PrimaryAttack()
+    if IsValid(self.EntHolding) then return end
+
     self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
 
     local owner = self:GetOwner()
@@ -160,6 +121,8 @@ function SWEP:PrimaryAttack()
 end
 
 function SWEP:SecondaryAttack()
+    if not IsValid(self.EntHolding) then return end
+
     self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
     self:Reset()
 end
