@@ -1,6 +1,7 @@
 AddCSLuaFile()
 
 local IsValid = IsValid
+local hook = hook
 local util = util
 
 if CLIENT then
@@ -33,6 +34,7 @@ SWEP.AllowDrop = false
 SWEP.IsSilent = false
 
 SWEP.EntHolding = nil
+SWEP.EntProps = nil
 
 -- Pull out faster than standard guns
 SWEP.DeploySpeed = 2
@@ -42,14 +44,29 @@ function SWEP:Initialize()
     if CLIENT then
         self:AddHUDHelp("kra_carry_help_pri", "kra_carry_help_sec", true)
     end
+
+    -- Don't let the held player pickup weapons
+    hook.Add("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
+        if ply == self.EntHolding then
+            return false
+        end
+    end)
+
     return self.BaseClass.Initialize(self)
 end
 
 function SWEP:Reset()
-    if SERVER and IsValid(self.EntHolding) then
-        self.EntHolding:SetParent(nil)
-        self.EntHolding:SetMoveType(self.EntProps.MoveType)
-        self.EntHolding:SetSolid(self.EntProps.Solid)
+    local ply = self.EntHolding
+    local plyProps = self.EntProps
+
+    -- Reset the property early so the "PlayerCanPickupWeapon" hook is disabled
+    self.EntHolding = nil
+    self.EntProps = nil
+
+    if SERVER and IsValid(ply) then
+        ply:SetParent(nil)
+        ply:SetMoveType(plyProps.MoveType)
+        ply:SetSolid(plyProps.Solid)
 
         local owner = self:GetOwner()
         -- Move them a bit away from where they were so they don't get stuck on the krampus
@@ -59,10 +76,16 @@ function SWEP:Reset()
             currentPos.z = 5
         end
         -- TODO: Sometimes they get stuck in the player
-        self.EntHolding:SetPos(currentPos)
-    end
+        ply:SetPos(currentPos)
 
-    self.EntHolding = nil
+        -- Give the player's weapons back
+        for _, data in ipairs(plyProps.Weapons) do
+            print("Giving",ply,data.class)
+            local wep = ply:Give(data.class)
+            wep:SetClip1(data.clip1)
+            wep:SetClip2(data.clip2)
+        end
+    end
 end
 
 function SWEP:Pickup(ent)
@@ -79,12 +102,23 @@ function SWEP:Pickup(ent)
     --ent:SetLocalPos(Vector(0, 10, 0))
     self.EntProps = {
         MoveType = self.EntHolding:GetMoveType(),
-        Solid = self.EntHolding:GetSolid()
+        Solid = self.EntHolding:GetSolid(),
+        Weapons = {}
     }
     self.EntHolding:SetMoveType(MOVETYPE_NONE)
     self.EntHolding:SetSolid(SOLID_NONE)
 
-    -- TODO: Prevent the held player from aiming, shooting, etc.
+    for _, weap in ipairs(self.EntHolding:GetWeapons()) do
+        print(self.EntHolding,"has",weap:GetClass())
+        table.insert(self.EntProps.Weapons, {
+            class = weap:GetClass(),
+            clip1 = weap:Clip1(),
+            clip2 = weap:Clip2()
+        })
+    end
+    self.EntHolding:StripWeapons()
+
+    -- TODO: Prevent the held player from aiming, etc.
     -- TODO: Show UI for the held player to struggle
 end
 
