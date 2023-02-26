@@ -107,7 +107,6 @@ KRAMPUS_NAUGHTY_DAMAGE = 1
 KRAMPUS_NAUGHTY_KILL = 2
 
 -- TODO: Carry weapon?
--- TODO: Custom melee weapon?
 
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
@@ -425,7 +424,7 @@ if SERVER then
     -- WIN CHECKS --
     ----------------
 
-    hook.Add("Initialize", "Krampus_Initialize", function()
+    AddHook("Initialize", "Krampus_Initialize", function()
         WIN_KRAMPUS = GenerateNewWinID(ROLE_KRAMPUS)
     end)
 
@@ -506,6 +505,10 @@ if CLIENT then
     ------------------
 
     AddHook("Initialize", "Krampus_Translations_Initialize", function()
+        -- Weapons
+        LANG.AddToLanguage("english", "kra_carry_help_pri", "Press {primaryfire} to grab a player.")
+        LANG.AddToLanguage("english", "kra_carry_help_sec", "Press {secondaryfire} to release a held player.")
+
         -- HUD
         LANG.AddToLanguage("english", "krampus_hud", "Time remaining to hunt naughty players: {time}")
 
@@ -651,7 +654,7 @@ if CLIENT then
     -- WIN CHECKS --
     ----------------
 
-    hook.Add("TTTSyncWinIDs", "Krampus_TTTSyncWinIDs", function()
+    AddHook("TTTSyncWinIDs", "Krampus_TTTSyncWinIDs", function()
         WIN_KRAMPUS = WINS_BY_ROLE[ROLE_KRAMPUS]
     end)
 
@@ -682,13 +685,13 @@ if CLIENT then
     -- EVENTS --
     ------------
 
-    hook.Add("TTTEventFinishText", "Krampus_TTTEventFinishText", function(e)
+    AddHook("TTTEventFinishText", "Krampus_TTTEventFinishText", function(e)
         if e.win == WIN_KRAMPUS then
             return LANG.GetParamTranslation("ev_win_krampus", { role = string.lower(ROLE_STRINGS[ROLE_KRAMPUS]) })
         end
     end)
 
-    hook.Add("TTTEventFinishIconText", "Krampus_TTTEventFinishIconText", function(e, win_string, role_string)
+    AddHook("TTTEventFinishIconText", "Krampus_TTTEventFinishIconText", function(e, win_string, role_string)
         if e.win == WIN_KRAMPUS then
             return win_string, ROLE_STRINGS[ROLE_KRAMPUS]
         end
@@ -698,7 +701,7 @@ if CLIENT then
     -- HUD --
     ---------
 
-    hook.Add("TTTHUDInfoPaint", "Krampus_TTTHUDInfoPaint", function(ply, label_left, label_top, active_labels)
+    AddHook("TTTHUDInfoPaint", "Krampus_TTTHUDInfoPaint", function(ply, label_left, label_top, active_labels)
         if not ply:IsKrampus() then return end
 
         local hide_role = false
