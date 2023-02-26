@@ -46,7 +46,7 @@ function SWEP:Initialize()
 end
 
 function SWEP:Reset()
-    if IsValid(self.EntHolding) then
+    if SERVER and IsValid(self.EntHolding) then
         self.EntHolding:SetParent(nil)
         self.EntHolding:SetMoveType(self.EntProps.MoveType)
         self.EntHolding:SetSolid(self.EntProps.Solid)
@@ -66,27 +66,34 @@ function SWEP:Reset()
 end
 
 function SWEP:Pickup(ent)
-    if CLIENT or IsValid(self.EntHolding) then return end
+    if IsValid(self.EntHolding) then return end
     if not IsValid(ent) then return end
 
-    local entphys = ent:GetPhysicsObject()
-    if not IsValid(entphys) then return end
+    self.EntHolding = ent
+
+    if CLIENT then return end
 
     local owner = self:GetOwner()
-
-    self.EntHolding = ent
-    ent:SetParent(owner)
+    self.EntHolding:SetParent(owner)
     -- TODO: The position isn't consistent when the player looks around. Looking up or down seems to move the held player closer and further
     --ent:SetLocalPos(Vector(0, 10, 0))
     self.EntProps = {
-        MoveType = ent:GetMoveType(),
-        Solid = ent:GetSolid()
+        MoveType = self.EntHolding:GetMoveType(),
+        Solid = self.EntHolding:GetSolid()
     }
-    ent:SetMoveType(MOVETYPE_NONE)
-    ent:SetSolid(SOLID_NONE)
+    self.EntHolding:SetMoveType(MOVETYPE_NONE)
+    self.EntHolding:SetSolid(SOLID_NONE)
 
     -- TODO: Prevent the held player from aiming, shooting, etc.
     -- TODO: Show UI for the held player to struggle
+end
+
+function SWEP:PlayPunchAnimation()
+    local owner = self:GetOwner()
+    local anim = "fists_right"
+    local vm = owner:GetViewModel()
+    vm:SendViewModelMatchingSequence(vm:LookupSequence(anim))
+    owner:SetAnimation(PLAYER_ATTACK1)
 end
 
 function SWEP:PrimaryAttack()
@@ -96,6 +103,8 @@ function SWEP:PrimaryAttack()
 
     local owner = self:GetOwner()
     if not IsValid(owner) then return end
+
+    self:PlayPunchAnimation()
 
     if owner.LagCompensation then -- for some reason not always true
         owner:LagCompensation(true)
