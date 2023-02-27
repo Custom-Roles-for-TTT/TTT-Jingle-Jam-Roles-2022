@@ -5,7 +5,7 @@ local hook = hook
 local util = util
 
 if CLIENT then
-    SWEP.PrintName = "Claws"
+    SWEP.PrintName = "Grabbing Claws"
     SWEP.Slot = 8 -- add 1 to get the slot number key
     SWEP.ViewModelFOV = 54
     SWEP.ViewModelFlip = false
@@ -33,8 +33,8 @@ SWEP.Kind = WEAPON_ROLE
 SWEP.AllowDrop = false
 SWEP.IsSilent = false
 
-SWEP.EntHolding = nil
-SWEP.EntProps = nil
+SWEP.Victim = nil
+SWEP.VictimProps = nil
 
 -- Pull out faster than standard guns
 SWEP.DeploySpeed = 2
@@ -47,7 +47,7 @@ function SWEP:Initialize()
 
     -- Don't let the held player pickup weapons
     hook.Add("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
-        if ply == self.EntHolding then
+        if ply == self.Victim then
             return false
         end
     end)
@@ -55,32 +55,40 @@ function SWEP:Initialize()
     return self.BaseClass.Initialize(self)
 end
 
+function SWEP:UpdateVictimPosition()
+    if CLIENT then return end
+    if not IsValid(self.Victim) then return end
+
+    local owner = self:GetOwner()
+    self.Victim:SetPos(owner:LocalToWorld(Vector(35, 0, 0)))
+    self.Victim:SetAngles(owner:GetAngles())
+end
+
+if SERVER then
+    function SWEP:Think()
+        self.BaseClass.Think(self)
+        self:UpdateVictimPosition()
+    end
+end
+
 function SWEP:Reset()
-    local ply = self.EntHolding
-    local plyProps = self.EntProps
+    local owner = self:GetOwner()
+    local ply = self.Victim
+    local plyProps = self.VictimProps
 
     -- Reset the property early so the "PlayerCanPickupWeapon" hook is disabled
-    self.EntHolding = nil
-    self.EntProps = nil
+    self.Victim = nil
+    self.VictimWeapons = nil
 
     if SERVER and IsValid(ply) then
-        ply:SetParent(nil)
-        ply:SetMoveType(plyProps.MoveType)
         ply:SetSolid(plyProps.Solid)
-
-        local owner = self:GetOwner()
-        -- Move them a bit away from where they were so they don't get stuck on the krampus
-        local currentPos = owner:GetPos() + owner:GetAimVector() * 70
-        -- Don't let them get stuck in the ground
-        if currentPos.z < 0 then
-            currentPos.z = 5
-        end
-        -- TODO: Sometimes they get stuck in the player
-        ply:SetPos(currentPos)
+        -- Move the player up a little bit to make sure they don't get stuck in the ground
+        local newPos = owner:LocalToWorld(Vector(50, 0, 5))
+        -- TODO: Player can get stuck in the ground or in the player dropping them
+        ply:SetPos(newPos)
 
         -- Give the player's weapons back
         for _, data in ipairs(plyProps.Weapons) do
-            print("Giving",ply,data.class)
             local wep = ply:Give(data.class)
             wep:SetClip1(data.clip1)
             wep:SetClip2(data.clip2)
@@ -89,36 +97,30 @@ function SWEP:Reset()
 end
 
 function SWEP:Pickup(ent)
-    if IsValid(self.EntHolding) then return end
+    if IsValid(self.Victim) then return end
     if not IsValid(ent) then return end
 
-    self.EntHolding = ent
+    self.Victim = ent
 
     if CLIENT then return end
 
-    local owner = self:GetOwner()
-    self.EntHolding:SetParent(owner)
-    -- TODO: The position isn't consistent when the player looks around. Looking up or down seems to move the held player closer and further
-    --ent:SetLocalPos(Vector(0, 10, 0))
-    self.EntProps = {
-        MoveType = self.EntHolding:GetMoveType(),
-        Solid = self.EntHolding:GetSolid(),
+    self.VictimProps = {
+        Solid = self.Victim:GetSolid(),
         Weapons = {}
     }
-    self.EntHolding:SetMoveType(MOVETYPE_NONE)
-    self.EntHolding:SetSolid(SOLID_NONE)
+    self.Victim:SetSolid(SOLID_NONE)
 
-    for _, weap in ipairs(self.EntHolding:GetWeapons()) do
-        print(self.EntHolding,"has",weap:GetClass())
-        table.insert(self.EntProps.Weapons, {
+    for _, weap in ipairs(self.Victim:GetWeapons()) do
+        table.insert(self.VictimProps.Weapons, {
             class = weap:GetClass(),
             clip1 = weap:Clip1(),
             clip2 = weap:Clip2()
         })
     end
-    self.EntHolding:StripWeapons()
+    self.Victim:StripWeapons()
 
-    -- TODO: Prevent the held player from aiming, etc.
+    self:UpdateVictimPosition()
+
     -- TODO: Show UI for the held player to struggle
 end
 
@@ -131,7 +133,7 @@ function SWEP:PlayPunchAnimation()
 end
 
 function SWEP:PrimaryAttack()
-    if IsValid(self.EntHolding) then return end
+    if IsValid(self.Victim) then return end
 
     self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
 
@@ -164,7 +166,7 @@ function SWEP:PrimaryAttack()
 end
 
 function SWEP:SecondaryAttack()
-    if not IsValid(self.EntHolding) then return end
+    if not IsValid(self.Victim) then return end
 
     self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
     self:Reset()
