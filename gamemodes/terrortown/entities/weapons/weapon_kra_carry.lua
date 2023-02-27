@@ -85,6 +85,30 @@ function SWEP:Reset()
         -- Move the player up a little bit to make sure they don't get stuck in the ground
         local newPos = owner:LocalToWorld(Vector(50, 0, 5))
         -- TODO: Player can get stuck in the ground or in the player dropping them
+
+        -- Prevent player from getting stuck in the world
+        while true do
+            local tr = util.TraceLine({
+                start = newPos,
+                endpos = newPos
+            })
+            if tr.Hit then
+                newPos.z = newPos.z + 10
+            else
+                break
+            end
+        end
+
+        -- Prevent player from getting stuck in other players
+        while true do
+            local foundEnts = ents.FindAlongRay(newPos, newPos)
+            if #foundEnts > 1 then
+                newPos.z = newPos.z + 10
+            else
+                break
+            end
+        end
+
         ply:SetPos(newPos)
 
         -- Give the player's weapons back
@@ -94,6 +118,9 @@ function SWEP:Reset()
             wep:SetClip2(data.clip2)
         end
     end
+
+    -- TODO: Undo player movement and camera locks
+    -- TODO: Add convar to "stun" the victim for some time
 end
 
 function SWEP:Pickup(ent)
@@ -121,7 +148,9 @@ function SWEP:Pickup(ent)
 
     self:UpdateVictimPosition()
 
+    -- TODO: Lock player movement and camera on the client to reduce jerkiness
     -- TODO: Show UI for the held player to struggle
+    -- TODO: Prevent thirdperson animations from playing. Currently it looks like the player is jumping sometimes
 end
 
 function SWEP:PlayPunchAnimation()
