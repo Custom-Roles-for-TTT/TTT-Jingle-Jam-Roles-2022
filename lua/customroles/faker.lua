@@ -35,18 +35,14 @@ local function DoesFakeCount(ply)
     for _, p in ipairs(player.GetAll()) do
         if p ~= ply then
             local los = false
-            if losrequired then
-                if ply:IsLineOfSightClear(p) then
-                    los = true
-                end
+            if losrequired and ply:IsLineOfSightClear(p) then
+                los = true
             end
 
             local inrange = false
 
-            if distance > 0 then
-                if ply:GetPos():Distance(p:GetPos()) <= distance then
-                    inrange = true
-                end
+            if distance > 0 and ply:GetPos():Distance(p:GetPos()) <= distance then
+                inrange = true
             end
 
             if (not losrequired or los) and (distance == 0 or inrange) then
@@ -66,8 +62,6 @@ if SERVER then
     local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15")
     local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1")
     local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10")
-
-    util.AddNetworkString("TTT_FakerUpdateFakeWeapon")
 
     hook.Add("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
         SetGlobalInt("ttt_faker_required_fakes", faker_required_fakes:GetInt())
@@ -135,75 +129,72 @@ if SERVER then
             wep.Primary.Damage = 0
             wep.AllowDrop = false
             wep.IsFakerFake = true
+            wep.OnDrop = function(w) w:Remove() end
 
-            if wep.Kind <= 8 then -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
+            -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
+            if wep.Kind <= 8 then
                 wep.Kind = WEAPON_ROLE
             end
-
-            net.Start("TTT_FakerUpdateFakeWeapon")
-            net.WriteEntity(ply)
-            net.WriteString(id)
-            net.Broadcast()
+            -- Mark this as a role weapon so Randomats and things like that don't mess with it
+            wep.Category = WEAPON_CATEGORY_ROLE
         end
     end)
 
     hook.Add("KeyPress", "Faker_KeyPress", function(ply, key)
-        if ply:IsActiveFaker() and key == IN_ATTACK then
-            local wep = ply:GetActiveWeapon()
-            local class = wep:GetClass()
-            if wep.IsFakerFake then
-                if DoesFakeCount(ply) then
-                    local fakesused = {}
-                    local fakesusedstr = ply:GetNWString("FakerFakesUsed", "")
-                    for fake in string.gmatch(fakesusedstr, "([^,]+)") do
-                        table.insert(fakesused, fake:Trim())
-                    end
-                    if not table.HasValue(fakesused, class) then
-                        if fakesusedstr == "" then
-                            fakesusedstr = class
-                        else
-                            fakesusedstr = fakesusedstr .. "," .. class
-                        end
-                        ply:SetNWString("FakerFakesUsed", fakesusedstr)
+        if not ply:IsActiveFaker() or key ~= IN_ATTACK then return end
 
-                        local count = ply:GetNWInt("FakerFakeCount", 0) + 1
-                        ply:SetNWInt("FakerFakeCount", count)
-                        if count >= faker_required_fakes:GetInt() then
-                            ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!")
-                            ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!")
-                        else
-                            local delay = faker_credits_timer:GetInt()
-                            if delay == 0 then
-                                ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
-                                ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
-                                ply:AddCredits(1)
-                            else
-                                local seconds = " seconds."
-                                if delay == 1 then
-                                    seconds = " second."
-                                end
-                                ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds)
-                                ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds)
-                                timer.Create(ply:SteamID64() .. "FakerCreditTimer", delay, 0, function()
-                                    ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
-                                    ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
-                                    ply:AddCredits(1)
-                                end)
-                            end
-                        end
-                    end
+        local wep = ply:GetActiveWeapon()
+        if not wep.IsFakerFake then return end
+
+        if DoesFakeCount(ply) then
+            local fakesused = {}
+            local fakesusedstr = ply:GetNWString("FakerFakesUsed", "")
+            for fake in string.gmatch(fakesusedstr, "([^,]+)") do
+                table.insert(fakesused, fake:Trim())
+            end
+
+            local class = wep:GetClass()
+            if table.HasValue(fakesused, class) then return end
+
+            table.insert(fakesused, class)
+            fakesusedstr = table.concat(fakesused, ",")
+            ply:SetNWString("FakerFakesUsed", fakesusedstr)
+
+            local count = ply:GetNWInt("FakerFakeCount", 0) + 1
+            ply:SetNWInt("FakerFakeCount", count)
+            if count >= faker_required_fakes:GetInt() then
+                ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!")
+                ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!")
+            else
+                local delay = faker_credits_timer:GetInt()
+                if delay == 0 then
+                    ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
+                    ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
+                    ply:AddCredits(1)
                 else
-                    local losrequired = faker_line_of_sight_required:GetBool()
-                    local distance = faker_minimum_distance:GetFloat()
-                    ply:PrintMessage(HUD_PRINTCENTER, "Fake weapon use did not count!")
-                    if losrequired and distance > 0 then
-                        ply:PrintMessage(HUD_PRINTTALK, "You need to be close to and within line of sight of another player for your fake weapon use to count.")
-                    elseif losrequired then
-                        ply:PrintMessage(HUD_PRINTTALK, "You need to be within line of sight of another player for your fake weapon use to count.")
-                    else
-                        ply:PrintMessage(HUD_PRINTTALK, "You need to be close to another player for your fake weapon use to count.")
+                    local seconds = " seconds."
+                    if delay == 1 then
+                        seconds = " second."
                     end
+                    ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds)
+                    ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds)
+                    timer.Create(ply:SteamID64() .. "FakerCreditTimer", delay, 0, function()
+                        ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
+                        ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
+                        ply:AddCredits(1)
+                    end)
                 end
+            end
+        else
+            local losrequired = faker_line_of_sight_required:GetBool()
+            local distance = faker_minimum_distance:GetFloat()
+            ply:PrintMessage(HUD_PRINTCENTER, "Fake weapon use did not count!")
+            if losrequired and distance > 0 then
+                ply:PrintMessage(HUD_PRINTTALK, "You need to be close to and within line of sight of another player for your fake weapon use to count.")
+            elseif losrequired then
+                ply:PrintMessage(HUD_PRINTTALK, "You need to be within line of sight of another player for your fake weapon use to count.")
+            else
+                ply:PrintMessage(HUD_PRINTTALK, "You need to be close to another player for your fake weapon use to count.")
             end
         end
     end)
@@ -262,17 +253,6 @@ if CLIENT then
                 table.insert(active_labels, "faker")
             end
         end
-    end)
-
-    ------------------------
-    -- FAKE WEAPON UPDATE --
-    ------------------------
-
-    net.Receive("TTT_FakerUpdateFakeWeapon", function()
-        local ply = net.ReadEntity()
-        local id = net.ReadString()
-        local wep = ply:GetWeapon(id)
-        wep.PrintName = "Fake " .. LANG.TryTranslation(wep.GetPrintName and wep:GetPrintName() or id or "Unknown Weapon Name") -- This doesn't seem to work for some reason
     end)
 
     --TODO: Add tutorial
