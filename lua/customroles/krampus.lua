@@ -100,8 +100,6 @@ TableInsert(ROLE.convars, {
     type = ROLE_CONVAR_TYPE_BOOL
 })
 
-RegisterRole(ROLE)
-
 KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1
 KRAMPUS_NAUGHTY_KILL = 2
@@ -273,7 +271,7 @@ if SERVER then
         end
     end)
 
-    ROLE_MOVE_ROLE_STATE[ROLE_KRAMPUS] = function(ply, target, keep_on_source)
+    ROLE.moverolestate = function(ply, target, keep_on_source)
         target:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
 
         local krampusTarget = ply:GetNWString("KrampusTarget", "")
@@ -291,7 +289,7 @@ if SERVER then
             end)
         end
     end
-    ROLE_ON_ROLE_ASSIGNED[ROLE_KRAMPUS] = function(ply)
+    ROLE.onroleassigned = function(ply)
         AssignKrampusTarget(ply, true, false)
     end
 
@@ -529,7 +527,7 @@ if CLIENT then
         end
     end)
 
-    ROLE_IS_TARGETID_OVERRIDDEN[ROLE_KRAMPUS] = function(ply, target, showJester)
+    ROLE.istargetidoverridden = function(ply, target, showJester)
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
 
@@ -556,7 +554,7 @@ if CLIENT then
         end
     end)
 
-    ROLE_IS_SCOREBOARD_INFO_OVERRIDDEN[ROLE_KRAMPUS] = function(ply, target)
+    ROLE.isscoreboardinfooverridden = function(ply, target)
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
 
@@ -622,7 +620,7 @@ if CLIENT then
         end
     end)
 
-    ROLE_IS_TARGET_HIGHLIGHTED[ROLE_KRAMPUS] = function(ply, target)
+    ROLE.istargethighlighted = function(ply, target)
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
 
@@ -751,3 +749,5 @@ AddHook("TTTUpdateRoleState", "Krampus_Team_TTTUpdateRoleState", function()
     MONSTER_ROLES[ROLE_KRAMPUS] = is_monster
     INDEPENDENT_ROLES[ROLE_KRAMPUS] = not is_monster
 end)
+
+RegisterRole(ROLE)
