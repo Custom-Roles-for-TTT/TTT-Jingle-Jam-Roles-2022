@@ -104,6 +104,8 @@ KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1
 KRAMPUS_NAUGHTY_KILL = 2
 
+-- TODO: Change things away from using replicated convars
+
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
     if ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
