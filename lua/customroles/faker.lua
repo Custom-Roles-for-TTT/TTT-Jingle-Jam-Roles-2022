@@ -1,3 +1,19 @@
+local hook = hook
+local ipairs = ipairs
+local pairs = pairs
+local player = player
+local string = string
+local table = table
+local timer = timer
+
+local AddHook = hook.Add
+local GetAllPlayers = player.GetAll
+local StringGMatch = string.gmatch
+local TableConcat = table.concat
+local TableHasValue = table.HasValue
+local TableInsert = table.insert
+local TimerCreate = timer.Create
+
 local ROLE = {}
 
 ROLE.nameraw = "faker"
@@ -32,21 +48,17 @@ local function DoesFakeCount(ply)
     if not losrequired and distance == 0 then return true end
 
     local found = false
-    for _, p in ipairs(player.GetAll()) do
+    for _, p in ipairs(GetAllPlayers()) do
         if p ~= ply then
             local los = false
-            if losrequired then
-                if ply:IsLineOfSightClear(p) then
-                    los = true
-                end
+            if losrequired and ply:IsLineOfSightClear(p) then
+                los = true
             end
 
             local inrange = false
 
-            if distance > 0 then
-                if ply:GetPos():Distance(p:GetPos()) <= distance then
-                    inrange = true
-                end
+            if distance > 0 and ply:GetPos():Distance(p:GetPos()) <= distance then
+                inrange = true
             end
 
             if (not losrequired or los) and (distance == 0 or inrange) then
@@ -67,9 +79,7 @@ if SERVER then
     local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1")
     local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10")
 
-    util.AddNetworkString("TTT_FakerUpdateFakeWeapon")
-
-    hook.Add("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
+    AddHook("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
         SetGlobalInt("ttt_faker_required_fakes", faker_required_fakes:GetInt())
         SetGlobalInt("ttt_faker_credits_timer", faker_credits_timer:GetInt())
         SetGlobalBool("ttt_faker_line_of_sight_required", faker_line_of_sight_required:GetBool())
@@ -80,11 +90,11 @@ if SERVER then
     -- ROLE SHOP --
     ---------------
 
-    hook.Add("TTTBeginRound", "Faker_Shop_TTTBeginRound", function()
+    AddHook("TTTBeginRound", "Faker_Shop_TTTBeginRound", function()
         -- We do this here so that HandleRoleEquipment can be called first and traitor weapon changes are automatically updated
         local blocklist = {}
-        for blocked_id in string.gmatch(faker_excluded_weapons:GetString(), "([^,]+)") do
-            table.insert(blocklist, blocked_id:Trim())
+        for blocked_id in StringGMatch(faker_excluded_weapons:GetString(), "([^,]+)") do
+            TableInsert(blocklist, blocked_id:Trim())
         end
 
         local roleweapons = {}
@@ -94,10 +104,10 @@ if SERVER then
             local canbuy = weapon.CanBuy
             if canbuy then
                 for _, role in pairs(GetTeamRoles(TRAITOR_ROLES)) do
-                    if table.HasValue(canbuy, role) and not table.HasValue(WEPS.ExcludeWeapons[role], class) and not table.HasValue(blocklist, class) and weapon.Primary.Damage and weapon.Primary.Damage > 0 then
-                        if not table.HasValue(roleweapons, class) then
-                            table.insert(WEPS.BuyableWeapons[ROLE_FAKER], class)
-                            table.insert(roleweapons, class)
+                    if TableHasValue(canbuy, role) and not TableHasValue(WEPS.ExcludeWeapons[role], class) and not TableHasValue(blocklist, class) and weapon.Primary.Damage and weapon.Primary.Damage > 0 then
+                        if not TableHasValue(roleweapons, class) then
+                            TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
+                            TableInsert(roleweapons, class)
                         end
                     end
                 end
@@ -107,10 +117,10 @@ if SERVER then
             if WEPS.BuyableWeapons[role] then
                 for _, class in pairs(WEPS.BuyableWeapons[role]) do
                     local wep = weapons.GetStored(class)
-                    if  not table.HasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 then
-                        if not table.HasValue(roleweapons, class) then
-                            table.insert(WEPS.BuyableWeapons[ROLE_FAKER], class)
-                            table.insert(roleweapons, class)
+                    if  not TableHasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 then
+                        if not TableHasValue(roleweapons, class) then
+                            TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
+                            TableInsert(roleweapons, class)
                         end
                     end
                 end
@@ -129,81 +139,78 @@ if SERVER then
     -- WEAPON PURCHASE --
     ---------------------
 
-    hook.Add("TTTOrderedEquipment", "Faker_TTTOrderedEquipment", function(ply, id, is_item)
+    AddHook("TTTOrderedEquipment", "Faker_TTTOrderedEquipment", function(ply, id, is_item)
         if ply:IsFaker() and not is_item then
             local wep = ply:GetWeapon(id)
             wep.Primary.Damage = 0
             wep.AllowDrop = false
             wep.IsFakerFake = true
+            wep.OnDrop = function(w) w:Remove() end
 
-            if wep.Kind <= 8 then -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
+            -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
+            if wep.Kind <= 8 then
                 wep.Kind = WEAPON_ROLE
             end
-
-            net.Start("TTT_FakerUpdateFakeWeapon")
-            net.WriteEntity(ply)
-            net.WriteString(id)
-            net.Broadcast()
+            -- Mark this as a role weapon so Randomats and things like that don't mess with it
+            wep.Category = WEAPON_CATEGORY_ROLE
         end
     end)
 
-    hook.Add("KeyPress", "Faker_KeyPress", function(ply, key)
-        if ply:IsActiveFaker() and key == IN_ATTACK then
-            local wep = ply:GetActiveWeapon()
-            local class = wep:GetClass()
-            if wep.IsFakerFake then
-                if DoesFakeCount(ply) then
-                    local fakesused = {}
-                    local fakesusedstr = ply:GetNWString("FakerFakesUsed", "")
-                    for fake in string.gmatch(fakesusedstr, "([^,]+)") do
-                        table.insert(fakesused, fake:Trim())
-                    end
-                    if not table.HasValue(fakesused, class) then
-                        if fakesusedstr == "" then
-                            fakesusedstr = class
-                        else
-                            fakesusedstr = fakesusedstr .. "," .. class
-                        end
-                        ply:SetNWString("FakerFakesUsed", fakesusedstr)
+    AddHook("KeyPress", "Faker_KeyPress", function(ply, key)
+        if not ply:IsActiveFaker() or key ~= IN_ATTACK then return end
 
-                        local count = ply:GetNWInt("FakerFakeCount", 0) + 1
-                        ply:SetNWInt("FakerFakeCount", count)
-                        if count >= faker_required_fakes:GetInt() then
-                            ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!")
-                            ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!")
-                        else
-                            local delay = faker_credits_timer:GetInt()
-                            if delay == 0 then
-                                ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
-                                ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
-                                ply:AddCredits(1)
-                            else
-                                local seconds = " seconds."
-                                if delay == 1 then
-                                    seconds = " second."
-                                end
-                                ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds)
-                                ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds)
-                                timer.Create(ply:SteamID64() .. "FakerCreditTimer", delay, 0, function()
-                                    ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
-                                    ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
-                                    ply:AddCredits(1)
-                                end)
-                            end
-                        end
-                    end
+        local wep = ply:GetActiveWeapon()
+        if not wep.IsFakerFake then return end
+
+        if DoesFakeCount(ply) then
+            local fakesused = {}
+            local fakesusedstr = ply:GetNWString("FakerFakesUsed", "")
+            for fake in StringGMatch(fakesusedstr, "([^,]+)") do
+                TableInsert(fakesused, fake:Trim())
+            end
+
+            local class = wep:GetClass()
+            if TableHasValue(fakesused, class) then return end
+
+            TableInsert(fakesused, class)
+            fakesusedstr = TableConcat(fakesused, ",")
+            ply:SetNWString("FakerFakesUsed", fakesusedstr)
+
+            local count = ply:GetNWInt("FakerFakeCount", 0) + 1
+            ply:SetNWInt("FakerFakeCount", count)
+            if count >= faker_required_fakes:GetInt() then
+                ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!")
+                ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!")
+            else
+                local delay = faker_credits_timer:GetInt()
+                if delay == 0 then
+                    ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
+                    ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
+                    ply:AddCredits(1)
                 else
-                    local losrequired = faker_line_of_sight_required:GetBool()
-                    local distance = faker_minimum_distance:GetFloat()
-                    ply:PrintMessage(HUD_PRINTCENTER, "Fake weapon use did not count!")
-                    if losrequired and distance > 0 then
-                        ply:PrintMessage(HUD_PRINTTALK, "You need to be close to and within line of sight of another player for your fake weapon use to count.")
-                    elseif losrequired then
-                        ply:PrintMessage(HUD_PRINTTALK, "You need to be within line of sight of another player for your fake weapon use to count.")
-                    else
-                        ply:PrintMessage(HUD_PRINTTALK, "You need to be close to another player for your fake weapon use to count.")
+                    local seconds = " seconds."
+                    if delay == 1 then
+                        seconds = " second."
                     end
+                    ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds)
+                    ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds)
+                    TimerCreate(ply:SteamID64() .. "FakerCreditTimer", delay, 0, function()
+                        ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
+                        ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
+                        ply:AddCredits(1)
+                    end)
                 end
+            end
+        else
+            local losrequired = faker_line_of_sight_required:GetBool()
+            local distance = faker_minimum_distance:GetFloat()
+            ply:PrintMessage(HUD_PRINTCENTER, "Fake weapon use did not count!")
+            if losrequired and distance > 0 then
+                ply:PrintMessage(HUD_PRINTTALK, "You need to be close to and within line of sight of another player for your fake weapon use to count.")
+            elseif losrequired then
+                ply:PrintMessage(HUD_PRINTTALK, "You need to be within line of sight of another player for your fake weapon use to count.")
+            else
+                ply:PrintMessage(HUD_PRINTTALK, "You need to be close to another player for your fake weapon use to count.")
             end
         end
     end)
@@ -216,8 +223,8 @@ if SERVER then
     -- CLEANUP --
     -------------
 
-    hook.Add("TTTPrepareRound", "Faker_PrepareRound", function()
-        for _, p in ipairs(player.GetAll()) do
+    AddHook("TTTPrepareRound", "Faker_PrepareRound", function()
+        for _, p in ipairs(GetAllPlayers()) do
             p:SetNWInt("FakerFakeCount", 0)
             p:SetNWString("FakerFakesUsed", "")
         end
@@ -229,7 +236,7 @@ if CLIENT then
     -- HUD --
     ---------
 
-    hook.Add("TTTHUDInfoPaint", "Faker_TTTHUDInfoPaint", function(client, label_left, label_top, active_labels)
+    AddHook("TTTHUDInfoPaint", "Faker_TTTHUDInfoPaint", function(client, label_left, label_top, active_labels)
         local hide_role = false
         if ConVarExists("ttt_hide_role") then
             hide_role = GetConVar("ttt_hide_role"):GetBool()
@@ -259,20 +266,9 @@ if CLIENT then
                 surface.DrawText(text)
 
                 -- Track that the label was added so others can position accurately
-                table.insert(active_labels, "faker")
+                TableInsert(active_labels, "faker")
             end
         end
-    end)
-
-    ------------------------
-    -- FAKE WEAPON UPDATE --
-    ------------------------
-
-    net.Receive("TTT_FakerUpdateFakeWeapon", function()
-        local ply = net.ReadEntity()
-        local id = net.ReadString()
-        local wep = ply:GetWeapon(id)
-        wep.PrintName = "Fake " .. LANG.TryTranslation(wep.GetPrintName and wep:GetPrintName() or id or "Unknown Weapon Name") -- This doesn't seem to work for some reason
     end)
 
     --TODO: Add tutorial
