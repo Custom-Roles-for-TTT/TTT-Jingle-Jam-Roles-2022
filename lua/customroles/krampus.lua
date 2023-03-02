@@ -91,6 +91,21 @@ TableInsert(ROLE.convars, {
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 0
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_carry_duration",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 0
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_struggle_interval",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 2
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_struggle_reduction",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 2
+})
 
 KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1

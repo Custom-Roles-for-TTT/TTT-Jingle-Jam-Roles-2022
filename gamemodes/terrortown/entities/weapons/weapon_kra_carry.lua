@@ -57,6 +57,9 @@ end
 
 if SERVER then
     CreateConVar("ttt_krampus_release_delay", "2", FCVAR_NONE, "The seconds a victim is stunned for when released", 0, 60)
+    CreateConVar("ttt_krampus_carry_duration", "30", FCVAR_NONE, "The seconds a victim can be carried for", 0, 60)
+    CreateConVar("ttt_krampus_struggle_interval", "0.25", FCVAR_NONE, "The seconds between victim struggles", 0.1, 1)
+    CreateConVar("ttt_krampus_struggle_reduction", "0.25", FCVAR_NONE, "The seconds a struggle reduces carry duration by", 0.1, 1)
 
     function SWEP:Think()
         self.BaseClass.Think(self)
@@ -161,11 +164,10 @@ function SWEP:Pickup(ent)
     -- Also show UI for the held player to struggle
     net.Start("KrampusCarryStart")
     net.WriteUInt(self:EntIndex(), 16)
+    net.WriteUInt(GetConVar("ttt_krampus_carry_duration"):GetInt(), 8)
+    net.WriteFloat(GetConVar("ttt_krampus_struggle_interval"):GetFloat())
+    net.WriteFloat(GetConVar("ttt_krampus_struggle_reduction"):GetFloat())
     net.Send(self.Victim)
-
-    -- TODO: Convar for number of seconds to hold player
-    -- TODO: Convar for struggle interval (e.g. how often a player can struggle)
-    -- TODO: Convar for struggle time reduction (e.g. how much hold time is reduced for each struggle)
 end
 
 function SWEP:PlayPunchAnimation()
@@ -257,9 +259,18 @@ if SERVER then
 end
 
 if CLIENT then
+    surface.CreateFont("KrampusStruggle", {
+        font = "Trebuchet24",
+        size = 18,
+        weight = 600
+    })
+
     net.Receive("KrampusCarryStart",  function()
         local client = LocalPlayer()
         local entIdx = net.ReadUInt(16)
+        local carryDuration = net.ReadUInt(8)
+        local struggleInterval = net.ReadFloat()
+        local struggleReduction = net.ReadFloat()
         hook.Add("StartCommand", "Krampus_StartCommand_" .. entIdx, function(ply, cmd)
             if ply ~= client then return end
             if not client:Alive() or client:IsSpec() then return end
@@ -281,7 +292,50 @@ if CLIENT then
             return true
         end)
 
-        -- TODO: Show UI
+        -- If duration is not set then this hold is indefinite
+        if carryDuration <= 0 then return end
+
+        -- Show the struggle UI
+
+        local startTime = CurTime()
+        local endTime = startTime + carryDuration
+        local margin = 10
+        local width, height = 200, 25
+        local x = ScrW() / 2 - width / 2
+        local y = margin / 2 + height
+        local colors = {
+            background = Color(30, 60, 100, 222),
+            fill = Color(75, 150, 255, 255)
+        }
+
+        hook.Add("HUDPaint", "Krampus_HUDPaint_" .. entIdx, function()
+            if not client:Alive() or client:IsSpec() then return end
+
+            local percentage = CurTime() / endTime
+            -- If the percentage has hit 100 then release the player
+            if percentage >= 1 then
+                net.Start("KrampusCarryEnd")
+                net.WriteUInt(entIdx, 16)
+                net.SendToServer()
+                hook.Remove("HUDPaint", "Krampus_HUDPaint_" .. entIdx)
+                return
+            end
+            CRHUD:PaintBar(8, x, y, width, height, colors, percentage)
+            draw.SimpleText("PRESS " .. Key("+forward", "W") .. " TO STRUGGLE", "KrampusStruggle", ScrW() / 2, y + 3, COLOR_WHITE, TEXT_ALIGN_CENTER)
+        end)
+
+        -- Increase progress every time they press the struggle button
+        local nextStruggle = 0
+        hook.Add("KeyPress", "Krampus_KeyPress_" .. entIdx, function(ply, key)
+            if ply ~= client then return end
+            if not client:Alive() or client:IsSpec() then return end
+            if key ~= IN_FORWARD then return end
+
+            if CurTime() > nextStruggle then
+                nextStruggle = CurTime() + struggleInterval
+                endTime = endTime - struggleReduction
+            end
+        end)
     end)
 
     net.Receive("KrampusCarryEnd",  function()
@@ -300,6 +354,7 @@ if CLIENT then
             End()
         end
 
-        -- TODO: Hide UI
+        hook.Remove("HUDPaint", "Krampus_HUDPaint_" .. entIdx)
+        hook.Remove("KeyPress", "Krampus_KeyPress_" .. entIdx)
     end)
 end

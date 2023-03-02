@@ -42,6 +42,10 @@ ttt_krampus_naughty_notify              0    // Whether to notify players who ar
 ttt_krampus_naughty_traitors            1    // Whether traitors should be automatically marked as naughty
 ttt_krampus_naughty_innocent_damage     1    // Whether players who damage innocents should be marked as naughty
 ttt_krampus_naughty_jester_damage       1    // Whether players who damage jesters should be marked as naughty
+ttt_krampus_release_delay               2    // The number of seconds a victim is stunned for when they released from being carried
+ttt_krampus_carry_duration              30   // The number of seconds a victim can be carried for
+ttt_krampus_struggle_interval           0.25 // The number of seconds between victim struggles while being carried
+ttt_krampus_struggle_reduction          0.25 // The number of seconds a struggle reduces carry duration by
 ```
 
 ## Special Thanks
