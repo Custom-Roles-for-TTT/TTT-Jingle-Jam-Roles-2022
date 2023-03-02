@@ -141,10 +141,13 @@ if SERVER then
     local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1")
 
     hook.Add("TTTSyncGlobals", "Krampus_TTTSyncGlobals", function()
+        SetGlobalFloat("ttt_krampus_target_damage_bonus", krampus_target_damage_bonus:GetFloat())
         SetGlobalBool("ttt_krampus_show_target_icon", krampus_show_target_icon:GetBool())
         SetGlobalBool("ttt_krampus_target_vision_enable", krampus_target_vision_enable:GetBool())
         SetGlobalBool("ttt_krampus_is_monster", krampus_is_monster:GetBool())
         SetGlobalBool("ttt_krampus_naughty_traitors", krampus_naughty_traitors:GetBool())
+        SetGlobalBool("ttt_krampus_naughty_innocent_damage", krampus_naughty_innocent_damage:GetBool())
+        SetGlobalBool("ttt_krampus_naughty_jester_damage", krampus_naughty_jester_damage:GetBool())
     end)
 
     -----------
@@ -279,6 +282,9 @@ if SERVER then
         if ent:IsJesterTeam() and ent:ShouldActLikeJester() and krampus_naughty_jester_damage:GetBool() then
             MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
         elseif ent:IsInnocentTeam() and krampus_naughty_innocent_damage:GetBool() then
+            MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
+        -- Also damaging the Krampus makes you naughty
+        elseif ent:IsKrampus() then
             MarkPlayerNaughty(att, KRAMPUS_NAUGHTY_DAMAGE)
         end
     end)
@@ -748,7 +754,45 @@ if CLIENT then
     AddHook("TTTTutorialRoleText", "Krampus_TTTTutorialRoleText", function(role, titleLabel)
         if role ~= ROLE_KRAMPUS then return end
 
-        -- TODO
+        local T = LANG.GetTranslation
+        local roleTeam = player.GetRoleTeam(ROLE_KRAMPUS, true)
+        local roleTeamName, roleColor = GetRoleTeamInfo(roleTeam)
+        local html = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. roleTeamName .. "</span> role whose goal is to punish the naughty players."
+
+        if GetGlobalFloat("ttt_krampus_target_damage_bonus", 0.1) > 0 then
+            html = html .. "<span style='display: block; margin-top: 10px;'>The more naughty players the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " kills, the more damage the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " does.</span>"
+        end
+
+        -- Use this for effective highlighting
+        roleColor = ROLE_COLORS[ROLE_TRAITOR]
+
+        html = html .. "<span style='display: block; margin-top: 10px;'>The following players are considered <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>naughty</span>:</span>"
+        html = html .. "<ul>"
+        html = html .. "<li>Anyone who damages the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. "</li>"
+
+        if MONSTER_ROLES[ROLE_KRAMPUS] then
+            html = html .. "<li>" .. T("independents") .. "</li>"
+        else
+            html = html .. "<li>" .. T("monsters") .. "</li>"
+        end
+
+        if GetGlobalBool("ttt_krampus_naughty_traitors", true) then
+            html = html .. "<li>" .. T("traitors") .. "</li>"
+        end
+
+        html = html .. "<li>Anyone who "
+        if GetGlobalBool("ttt_krampus_naughty_innocent_damage", true) then
+            html = html .. " damages or "
+        end
+        html = html .. "kills " .. T("innocents") .. "</li>"
+
+        if GetGlobalBool("ttt_krampus_naughty_jester_damage", true) then
+            html = html .. "<li>Anyone who damages " .. T("jesters") .. "</li>"
+        end
+
+        html = html .. "</ul>"
+
+        return html
     end)
 end
 
