@@ -86,6 +86,11 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_krampus_naughty_jester_damage",
     type = ROLE_CONVAR_TYPE_BOOL
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_krampus_release_delay",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 0
+})
 
 KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1
