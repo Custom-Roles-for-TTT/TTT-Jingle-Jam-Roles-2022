@@ -33,19 +33,6 @@ ROLE.shoulddelayannouncements = true
 
 ROLE.shop = {}
 
-local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
-local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
-local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
-local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The number of seconds to delay a team's win if there are naughty players left", 0, 600)
-local krampus_next_target_delay = CreateConVar("ttt_krampus_next_target_delay", "5", FCVAR_NONE, "The delay (in seconds) before an krampus is assigned their next target", 0, 30)
-local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
-local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
-local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
-local krampus_naughty_notify = CreateConVar("ttt_krampus_naughty_notify", "0")
-local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1", FCVAR_REPLICATED)
-local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1")
-local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1")
-
 ROLE.convars = {}
 
 TableInsert(ROLE.convars, {
@@ -104,8 +91,6 @@ KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1
 KRAMPUS_NAUGHTY_KILL = 2
 
--- TODO: Change things away from using replicated convars
-
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
     if ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
@@ -123,11 +108,11 @@ local function ValidTarget(ply, role)
     end
 
     -- If Krampus is indepdendent then monsters are naughty
-    if not krampus_is_monster:GetBool() and MONSTER_ROLES[role] then
+    if INDEPENDENT_ROLES[ROLE_KRAMPUS] and MONSTER_ROLES[role] then
         return true
     end
 
-    if krampus_naughty_traitors:GetBool() and TRAITOR_ROLES[role] then
+    if GetGlobalBool("ttt_krampus_naughty_traitors", true) and TRAITOR_ROLES[role] then
         return true
     end
 
@@ -136,6 +121,26 @@ end
 
 if SERVER then
     AddCSLuaFile()
+
+    local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0")
+    local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0")
+    local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
+    local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The number of seconds to delay a team's win if there are naughty players left", 0, 600)
+    local krampus_next_target_delay = CreateConVar("ttt_krampus_next_target_delay", "5", FCVAR_NONE, "The delay (in seconds) before an krampus is assigned their next target", 0, 30)
+    local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0")
+    local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
+    local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
+    local krampus_naughty_notify = CreateConVar("ttt_krampus_naughty_notify", "0")
+    local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1")
+    local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1")
+    local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1")
+
+    hook.Add("TTTSyncGlobals", "Krampus_TTTSyncGlobals", function()
+        SetGlobalBool("ttt_krampus_show_target_icon", krampus_show_target_icon:GetBool())
+        SetGlobalBool("ttt_krampus_target_vision_enable", krampus_target_vision_enable:GetBool())
+        SetGlobalBool("ttt_krampus_is_monster", krampus_is_monster:GetBool())
+        SetGlobalBool("ttt_krampus_naughty_traitors", krampus_naughty_traitors:GetBool())
+    end)
 
     -----------
     -- KARMA --
@@ -524,7 +529,7 @@ if CLIENT then
 
     -- Show "KILL" icon over the target's head
     AddHook("TTTTargetIDPlayerKillIcon", "Krampus_TTTTargetIDPlayerKillIcon", function(ply, cli, showKillIcon, showJester)
-        if cli:IsKrampus() and krampus_show_target_icon:GetBool() and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester then
+        if cli:IsKrampus() and GetGlobalBool("ttt_krampus_show_target_icon", false) and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester then
             return true
         end
     end)
@@ -533,7 +538,7 @@ if CLIENT then
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
 
-        local show = (target:SteamID64() == ply:GetNWString("KrampusTarget", "")) and not showJester and krampus_show_target_icon:GetBool()
+        local show = (target:SteamID64() == ply:GetNWString("KrampusTarget", "")) and not showJester and GetGlobalBool("ttt_krampus_show_target_icon", false)
         ------ icon,  ring, text
         return show, false, false
     end
@@ -595,7 +600,7 @@ if CLIENT then
 
     AddHook("TTTUpdateRoleState", "Krampus_Highlight_TTTUpdateRoleState", function()
         client = LocalPlayer()
-        krampus_target_vision = krampus_target_vision_enable:GetBool()
+        krampus_target_vision = GetGlobalBool("ttt_krampus_target_vision_enable", false)
 
         -- Disable highlights on role change
         if vision_enabled then
@@ -747,9 +752,9 @@ end
 -------------------
 
 AddHook("TTTUpdateRoleState", "Krampus_Team_TTTUpdateRoleState", function()
-    local is_monster = krampus_is_monster:GetBool()
-    MONSTER_ROLES[ROLE_KRAMPUS] = is_monster
-    INDEPENDENT_ROLES[ROLE_KRAMPUS] = not is_monster
+    local krampus_is_monster = GetGlobalBool("ttt_krampus_is_monster", false)
+    MONSTER_ROLES[ROLE_KRAMPUS] = krampus_is_monster
+    INDEPENDENT_ROLES[ROLE_KRAMPUS] = not krampus_is_monster
 end)
 
 RegisterRole(ROLE)
