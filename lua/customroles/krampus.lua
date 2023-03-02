@@ -766,6 +766,8 @@ if CLIENT then
         -- Use this for effective highlighting
         roleColor = ROLE_COLORS[ROLE_TRAITOR]
 
+        html = html .. "<span style='display: block; margin-top: 10px;'>Use the <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>Grabbing Claws</span> to stun and pick up players, making it easier to take them to a hidden spot for the kill.</span>"
+
         html = html .. "<span style='display: block; margin-top: 10px;'>The following players are considered <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>naughty</span>:</span>"
         html = html .. "<ul>"
         html = html .. "<li>Anyone who damages the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. "</li>"

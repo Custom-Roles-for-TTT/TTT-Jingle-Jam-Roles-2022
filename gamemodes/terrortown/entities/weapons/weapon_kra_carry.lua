@@ -162,6 +162,10 @@ function SWEP:Pickup(ent)
     net.Start("KrampusCarryStart")
     net.WriteUInt(self:EntIndex(), 16)
     net.Send(self.Victim)
+
+    -- TODO: Convar for number of seconds to hold player
+    -- TODO: Convar for struggle interval (e.g. how often a player can struggle)
+    -- TODO: Convar for struggle time reduction (e.g. how much hold time is reduced for each struggle)
 end
 
 function SWEP:PlayPunchAnimation()
