@@ -72,6 +72,19 @@ TableInsert(ROLE.convars, {
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 0
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_faker_notify_mode",
+    type = ROLE_CONVAR_TYPE_NUM,
+    decimal = 0
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_faker_notify_sound",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
+    cvar = "ttt_faker_notify_confetti",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
 
 ROLE.translations = {
     ["english"] = {
@@ -132,11 +145,14 @@ if SERVER then
     AddCSLuaFile()
 
     local faker_required_fakes = CreateConVar("ttt_faker_required_fakes", "3", FCVAR_NONE, "The required number of fakes weapons that need to be used for the faker to win the round", 0, 10)
-    local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "")
+    local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber")
     local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15", FCVAR_NONE, "The amount of time (in seconds) after using a fake weapon before the faker is given a credit", 0, 60)
     local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1")
     local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10", FCVAR_NONE, "The minimum distance (in metres) the faker must be from another player for their fake weapon use to count", 0, 30)
     local faker_drop_weapons_on_death = CreateConVar("ttt_faker_drop_weapons_on_death", "3", FCVAR_NONE, "The maximum number of weapons the faker should drop when they die", 0, 10)
+    CreateConVar("ttt_faker_notify_mode", "4", FCVAR_NONE, "The logic to use when notifying players that the faker is killed", 0, 4)
+    CreateConVar("ttt_faker_notify_sound", "1")
+    CreateConVar("ttt_faker_notify_confetti", "1")
 
     util.AddNetworkString("TTT_UpdateFakerWins")
 
@@ -166,7 +182,7 @@ if SERVER then
             local canbuy = weapon.CanBuy
             if canbuy then
                 for _, role in pairs(GetTeamRoles(TRAITOR_ROLES)) do
-                    if TableHasValue(canbuy, role) and not TableHasValue(WEPS.ExcludeWeapons[role], class) and not TableHasValue(blocklist, class) and weapon.Primary.Damage and weapon.Primary.Damage > 0 and weapon.Primary.ClipSize and weapon.Primary.ClipSize > 0 then
+                    if TableHasValue(canbuy, role) and not TableHasValue(WEPS.ExcludeWeapons[role], class) and not TableHasValue(blocklist, class) and weapon.Primary.Damage and weapon.Primary.Damage > 0 then
                         if not TableHasValue(roleweapons, class) then
                             TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
                             TableInsert(roleweapons, class)
@@ -179,7 +195,7 @@ if SERVER then
             if WEPS.BuyableWeapons[role] then
                 for _, class in pairs(WEPS.BuyableWeapons[role]) do
                     local wep = weapons.GetStored(class)
-                    if  not TableHasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 and weapon.Primary.ClipSize and weapon.Primary.ClipSize > 0 then
+                    if  not TableHasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 then
                         if not TableHasValue(roleweapons, class) then
                             TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
                             TableInsert(roleweapons, class)
@@ -224,7 +240,6 @@ if SERVER then
                 wep.Primary.Damage = 0
                 wep.AllowDrop = false
                 wep.IsFakerFake = true
-                wep.ShouldDropOnDie = function() return false end
 
                 -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
                 if wep.Kind <= 8 then
@@ -240,8 +255,14 @@ if SERVER then
         if not ply:IsActiveFaker() or key ~= IN_ATTACK then return end
 
         local wep = ply:GetActiveWeapon()
-        if wep:Clip1() <= 0 then return end
+        if not wep:IsValid() then return end
         if not wep.IsFakerFake then return end
+        if wep.GetNextPrimaryFire and wep:GetNextPrimaryFire() > CurTime() then return end
+
+        local clip = wep.Primary.ClipSize
+        if clip and clip > 0 and wep:Clip1() <= 0 then
+            wep:SetClip1(clip)
+        end
 
         local fakesused = {}
         local fakesusedstr = ply:GetNWString("FakerFakesUsed", "")
@@ -328,6 +349,17 @@ if SERVER then
     -----------
     -- DEATH --
     -----------
+
+    AddHook("DoPlayerDeath", "Faker_DoPlayerDeath", function(ply, attacker, dmg)
+        if ply:IsFaker() then
+            local weps = ply:GetWeapons()
+            for _, wep in pairs(weps) do
+                if wep.IsFakerFake then
+                    ply:StripWeapon(wep:GetClass())
+                end
+            end
+        end
+    end)
 
     AddHook("PlayerDeath", "Faker_PlayerDeath", function(victim, infl, attacker)
         if victim:IsFaker() then
