@@ -50,10 +50,6 @@ TableInsert(ROLE.convars, {
     decimal = 0
 })
 TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_excluded_weapons",
-    type = ROLE_CONVAR_TYPE_TEXT
-})
-TableInsert(ROLE.convars, {
     cvar = "ttt_faker_credits_timer",
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 0
