@@ -156,6 +156,7 @@ if SERVER then
             local namePick = MathRandom(1, #names)
             local name = names[namePick]
             SetGlobalString("ttt_detectoclown_name", name)
+            UpdateRoleStrings()
             net.Start("TTT_UpdateRoleNames")
             net.Broadcast()
         end)
