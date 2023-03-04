@@ -1,6 +1,5 @@
 AddCSLuaFile()
 
-local Angle = Angle
 local CurTime = CurTime
 local ents = ents
 local hook = hook
@@ -102,7 +101,7 @@ function SWEP:UpdateVictimPosition()
 
     local owner = self:GetOwner()
     self.Victim:SetPos(owner:LocalToWorld(Vector(35, 0, 0)))
-    self.Victim:SetAngles(owner:GetAngles())
+    self.Victim:SetEyeAngles(owner:GetAngles())
 end
 
 function SWEP:Reset()
@@ -337,6 +336,8 @@ if CLIENT then
         local carryDuration = net.ReadUInt(8)
         local struggleInterval = net.ReadFloat()
         local struggleReduction = net.ReadFloat()
+        local krampusWeapon = Entity(entIdx)
+        local krampus = krampusWeapon:GetOwner()
         AddHook("StartCommand", "Krampus_Victim_StartCommand_" .. entIdx, function(ply, cmd)
             if ply ~= client then return end
             if not client:Alive() or client:IsSpec() then return end
@@ -352,8 +353,9 @@ if CLIENT then
         AddHook("InputMouseApply", "Krampus_Victim_InputMouseApply_" .. entIdx, function(cmd, x, y, ang)
             if not client:Alive() or client:IsSpec() then return end
 
-            -- Lock view in the center
-            ang = Angle()
+            -- Lock view in the center, but facing the same direction as Krampus
+            ang = krampus:EyeAngles()
+            ang.pitch = 0
             cmd:SetViewAngles(ang)
             return true
         end)
@@ -377,7 +379,8 @@ if CLIENT then
         AddHook("HUDPaint", "Krampus_Victim_HUDPaint_" .. entIdx, function()
             if not client:Alive() or client:IsSpec() then return end
 
-            local percentage = CurTime() / endTime
+            -- Don't use carryDuration or the changes to the endTime for the struggle won't reflect accurately
+            local percentage = (CurTime() - startTime) / (endTime - startTime)
             -- If the percentage has hit 100 then release the player
             if percentage >= 1 then
                 net.Start("KrampusVictimCarryEnd")
