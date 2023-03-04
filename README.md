@@ -9,7 +9,10 @@ The Detectoclown is a jester role who is promoted when the detective dies like t
 \
 \
 **ConVars**
-```ccp
+```cpp
+ttt_detectoclown_enabled                0   // Whether or not the detectoclown should spawn
+ttt_detectoclown_spawn_weight           1   // The weight assigned to spawning the detectoclown
+ttt_detectoclown_min_players            0   // The minimum number of players required to spawn the detectoclown
 ttt_detectoclown_override_marshal_badge 1   // Whether the marshal should turn jesters, independents and monsters into the detectoclown when using their badge
 ttt_detectoclown_use_traps_when_active  0   // Whether the detectoclown can see and use traitor traps when they are activated
 ttt_detectoclown_show_target_icon       0   // Whether the detectoclown has an icon over other players' heads showing who to kill
@@ -29,7 +32,10 @@ The Faker is a jester role who needs to buy and use fake traitor items without d
 \
 \
 **ConVars**
-```ccp
+```cpp
+ttt_faker_enabled                       0   // Whether or not the faker should spawn
+ttt_faker_spawn_weight                  1   // The weight assigned to spawning the faker
+ttt_faker_min_players                   0   // The minimum number of players required to spawn the faker
 ttt_faker_required_fakes                3   // The required number of fakes weapons that need to be used for the faker to win the round
 ttt_faker_credits_timer                 15  // The amount of time (in seconds) after using a fake weapon before the faker is given a credit
 ttt_faker_line_of_sight_required        1   // Whether the faker must be in line of sight of another player for their fake weapon use to count
@@ -47,7 +53,10 @@ The Krampus is an independent role whose goal is to punish naughty players.
 \
 \
 **ConVars**
-```ccp
+```cpp
+ttt_krampus_enabled                     0   // Whether or not the krampus should spawn
+ttt_krampus_spawn_weight                1   // The weight assigned to spawning the krampus
+ttt_krampus_min_players                 0   // The minimum number of players required to spawn the krampus
 ttt_krampus_show_target_icon            0    / Whether krampus have an icon over other players' heads showing who to kill. Server or round must be restarted for changes to take effect.
 ttt_krampus_target_vision_enable        0    // Whether krampus has a visible aura around their target, visible through walls
 ttt_krampus_target_damage_bonus         0.1  // Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)
