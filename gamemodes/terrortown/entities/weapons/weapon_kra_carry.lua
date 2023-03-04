@@ -1,8 +1,22 @@
 AddCSLuaFile()
 
-local IsValid = IsValid
+local Angle = Angle
+local CurTime = CurTime
+local ents = ents
 local hook = hook
+local ipairs = ipairs
+local IsValid = IsValid
+local math = math
+local table = table
+local timer = timer
 local util = util
+
+local AddHook = hook.Add
+local EntsFindAlongRay = ents.FindAlongRay
+local MathClamp = math.Clamp
+local TableInsert = table.insert
+local TraceLine = util.TraceLine
+local RemoveHook = hook.Remove
 
 if CLIENT then
     SWEP.PrintName = "Grabbing Claws"
@@ -46,7 +60,7 @@ function SWEP:Initialize()
     end
 
     -- Don't let the held player pickup weapons
-    hook.Add("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
+    AddHook("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
         if ply == self.Victim then
             return false
         end
@@ -63,6 +77,14 @@ if SERVER then
 
     function SWEP:Think()
         self.BaseClass.Think(self)
+        if self.Victim == nil then return end
+
+        -- If the player we're holding left or is dead then reset the weapon
+        if not IsValid(self.Victim) or not self.Victim:Alive() or self.Victim:IsSpec() then
+            self:Reset()
+            return
+        end
+
         self:UpdateVictimPosition()
     end
 end
@@ -81,9 +103,9 @@ function SWEP:Reset()
     local ply = self.Victim
     local plyProps = self.VictimProps
 
-    -- Reset the property early so the "PlayerCanPickupWeapon" hook is disabled
+    -- Reset the properties early so the "PlayerCanPickupWeapon" hook is disabled
     self.Victim = nil
-    self.VictimWeapons = nil
+    self.VictimProps = nil
 
     if CLIENT or not IsValid(ply) then return end
 
@@ -93,11 +115,10 @@ function SWEP:Reset()
     if ply:Alive() and not ply:IsSpec() then
         -- Move the player up a little bit to make sure they don't get stuck in the ground
         local newPos = owner:LocalToWorld(Vector(50, 0, 5))
-        -- TODO: Player can get stuck in the ground or in the player dropping them
 
         -- Prevent player from getting stuck in the world
         while true do
-            local tr = util.TraceLine({
+            local tr = TraceLine({
                 start = newPos,
                 endpos = newPos
             })
@@ -110,7 +131,7 @@ function SWEP:Reset()
 
         -- Prevent player from getting stuck in other players
         while true do
-            local foundEnts = ents.FindAlongRay(newPos, newPos)
+            local foundEnts = EntsFindAlongRay(newPos, newPos)
             if #foundEnts > 1 then
                 newPos.z = newPos.z + 10
             else
@@ -128,8 +149,13 @@ function SWEP:Reset()
         end
     end
 
-    -- Unlock player movement and camera and hide struggle UI
+    -- Unlock the Krampus' view as well
     net.Start("KrampusCarryEnd")
+    net.WriteUInt(self:EntIndex(), 16)
+    net.Send(owner)
+
+    -- Unlock player movement and camera and hide struggle UI
+    net.Start("KrampusVictimCarryEnd")
     net.WriteUInt(self:EntIndex(), 16)
     net.WriteUInt(GetConVar("ttt_krampus_release_delay"):GetInt(), 8)
     net.Send(ply)
@@ -150,7 +176,7 @@ function SWEP:Pickup(ent)
     self.Victim:SetSolid(SOLID_NONE)
 
     for _, weap in ipairs(self.Victim:GetWeapons()) do
-        table.insert(self.VictimProps.Weapons, {
+        TableInsert(self.VictimProps.Weapons, {
             class = weap:GetClass(),
             clip1 = weap:Clip1(),
             clip2 = weap:Clip2()
@@ -160,9 +186,14 @@ function SWEP:Pickup(ent)
 
     self:UpdateVictimPosition()
 
+    -- Lock the Krampus' camera a bit too so things are less janky
+    net.Start("KrampusCarryStart")
+    net.WriteUInt(self:EntIndex(), 16)
+    net.Send(self:GetOwner())
+
     -- Lock player movement and camera on the client to reduce jerkiness
     -- Also show UI for the held player to struggle
-    net.Start("KrampusCarryStart")
+    net.Start("KrampusVictimCarryStart")
     net.WriteUInt(self:EntIndex(), 16)
     net.WriteUInt(GetConVar("ttt_krampus_carry_duration"):GetInt(), 8)
     net.WriteFloat(GetConVar("ttt_krampus_struggle_interval"):GetFloat())
@@ -247,8 +278,10 @@ end
 if SERVER then
     util.AddNetworkString("KrampusCarryStart")
     util.AddNetworkString("KrampusCarryEnd")
+    util.AddNetworkString("KrampusVictimCarryStart")
+    util.AddNetworkString("KrampusVictimCarryEnd")
 
-    net.Receive("KrampusCarryEnd", function(len, ply)
+    net.Receive("KrampusVictimCarryEnd", function(len, ply)
         local entIdx = net.ReadUInt(16)
         local wep = Entity(entIdx)
         if not IsValid(wep) or not wep:IsWeapon() then return end
@@ -259,19 +292,45 @@ if SERVER then
 end
 
 if CLIENT then
+    -- Krampus
+
+    net.Receive("KrampusCarryStart", function()
+        local client = LocalPlayer()
+        local entIdx = net.ReadUInt(16)
+        AddHook("InputMouseApply", "Krampus_InputMouseApply_" .. entIdx, function(cmd, x, y, ang)
+            if not client:Alive() or client:IsSpec() then return end
+
+            -- Lock view from going too high up or down
+            ang.pitch = MathClamp(ang.pitch, -35, 35)
+
+            -- Apply the mouse movement to the values and then set the camera angles
+            ang.pitch = ang.pitch + (y / 50)
+            ang.yaw = ang.yaw - (x / 50)
+            cmd:SetViewAngles(ang)
+            return true
+        end)
+    end)
+
+    net.Receive("KrampusCarryEnd", function()
+        local entIdx = net.ReadUInt(16)
+        RemoveHook("InputMouseApply", "Krampus_InputMouseApply_" .. entIdx)
+    end)
+
+    -- Victim
+
     surface.CreateFont("KrampusStruggle", {
         font = "Trebuchet24",
         size = 18,
         weight = 600
     })
 
-    net.Receive("KrampusCarryStart",  function()
+    net.Receive("KrampusVictimCarryStart", function()
         local client = LocalPlayer()
         local entIdx = net.ReadUInt(16)
         local carryDuration = net.ReadUInt(8)
         local struggleInterval = net.ReadFloat()
         local struggleReduction = net.ReadFloat()
-        hook.Add("StartCommand", "Krampus_StartCommand_" .. entIdx, function(ply, cmd)
+        AddHook("StartCommand", "Krampus_Victim_StartCommand_" .. entIdx, function(ply, cmd)
             if ply ~= client then return end
             if not client:Alive() or client:IsSpec() then return end
 
@@ -283,7 +342,7 @@ if CLIENT then
             cmd:RemoveKey(IN_ATTACK)
             cmd:RemoveKey(IN_ATTACK2)
         end)
-        hook.Add("InputMouseApply", "Krampus_InputMouseApply_" .. entIdx, function(cmd, x, y, ang)
+        AddHook("InputMouseApply", "Krampus_Victim_InputMouseApply_" .. entIdx, function(cmd, x, y, ang)
             if not client:Alive() or client:IsSpec() then return end
 
             -- Lock view in the center
@@ -308,16 +367,16 @@ if CLIENT then
             fill = Color(75, 150, 255, 255)
         }
 
-        hook.Add("HUDPaint", "Krampus_HUDPaint_" .. entIdx, function()
+        AddHook("HUDPaint", "Krampus_Victim_HUDPaint_" .. entIdx, function()
             if not client:Alive() or client:IsSpec() then return end
 
             local percentage = CurTime() / endTime
             -- If the percentage has hit 100 then release the player
             if percentage >= 1 then
-                net.Start("KrampusCarryEnd")
+                net.Start("KrampusVictimCarryEnd")
                 net.WriteUInt(entIdx, 16)
                 net.SendToServer()
-                hook.Remove("HUDPaint", "Krampus_HUDPaint_" .. entIdx)
+                RemoveHook("HUDPaint", "Krampus_Victim_HUDPaint_" .. entIdx)
                 return
             end
             CRHUD:PaintBar(8, x, y, width, height, colors, percentage)
@@ -326,7 +385,7 @@ if CLIENT then
 
         -- Increase progress every time they press the struggle button
         local nextStruggle = 0
-        hook.Add("KeyPress", "Krampus_KeyPress_" .. entIdx, function(ply, key)
+        AddHook("KeyPress", "Krampus_Victim_KeyPress_" .. entIdx, function(ply, key)
             if ply ~= client then return end
             if not client:Alive() or client:IsSpec() then return end
             if key ~= IN_FORWARD then return end
@@ -338,13 +397,13 @@ if CLIENT then
         end)
     end)
 
-    net.Receive("KrampusCarryEnd",  function()
+    net.Receive("KrampusVictimCarryEnd", function()
         local entIdx = net.ReadUInt(16)
         local delay = net.ReadUInt(8)
 
         local function End()
-            hook.Remove("StartCommand", "Krampus_StartCommand_" .. entIdx)
-            hook.Remove("InputMouseApply", "Krampus_InputMouseApply_" .. entIdx)
+            RemoveHook("StartCommand", "Krampus_Victim_StartCommand_" .. entIdx)
+            RemoveHook("InputMouseApply", "Krampus_Victim_InputMouseApply_" .. entIdx)
         end
 
         -- End the effect after the given delay, if there is one
@@ -354,7 +413,7 @@ if CLIENT then
             End()
         end
 
-        hook.Remove("HUDPaint", "Krampus_HUDPaint_" .. entIdx)
-        hook.Remove("KeyPress", "Krampus_KeyPress_" .. entIdx)
+        RemoveHook("HUDPaint", "Krampus_Victim_HUDPaint_" .. entIdx)
+        RemoveHook("KeyPress", "Krampus_Victim_KeyPress_" .. entIdx)
     end)
 end
