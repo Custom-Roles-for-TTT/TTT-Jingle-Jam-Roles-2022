@@ -54,10 +54,10 @@ The Krampus is an independent role whose goal is to punish naughty players.
 \
 **ConVars**
 ```cpp
-ttt_krampus_enabled                     0   // Whether or not the krampus should spawn
-ttt_krampus_spawn_weight                1   // The weight assigned to spawning the krampus
-ttt_krampus_min_players                 0   // The minimum number of players required to spawn the krampus
-ttt_krampus_show_target_icon            0    / Whether krampus have an icon over other players' heads showing who to kill. Server or round must be restarted for changes to take effect.
+ttt_krampus_enabled                     0    // Whether or not the krampus should spawn
+ttt_krampus_spawn_weight                1    // The weight assigned to spawning the krampus
+ttt_krampus_min_players                 0    // The minimum number of players required to spawn the krampus
+ttt_krampus_show_target_icon            0    // Whether krampus have an icon over other players' heads showing who to kill. Server or round must be restarted for changes to take effect.
 ttt_krampus_target_vision_enable        0    // Whether krampus has a visible aura around their target, visible through walls
 ttt_krampus_target_damage_bonus         0.1  // Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)
 ttt_krampus_win_delay_time              60   // The number of seconds to delay a team's win if there are naughty players left
