@@ -66,6 +66,13 @@ function SWEP:Initialize()
         end
     end)
 
+    -- Prevent fall damage while being carried
+    AddHook("EntityTakeDamage", "Krampus_EntityTakeDamage_" .. self:EntIndex(), function(ent, dmginfo)
+        if IsPlayer(ent) and ent == self.Victim and dmginfo:IsFallDamage() then
+            return true
+        end
+    end)
+
     return self.BaseClass.Initialize(self)
 end
 
