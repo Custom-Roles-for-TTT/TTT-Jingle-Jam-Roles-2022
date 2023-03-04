@@ -1,12 +1,12 @@
+local ents = ents
 local hook = hook
 local ipairs = ipairs
+local math = math
 local pairs = pairs
 local player = player
 local string = string
 local table = table
-local math = math
 local timer = timer
-local ents = ents
 
 local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
@@ -473,7 +473,7 @@ if CLIENT then
     -- SCORING --
     -------------
 
-    hook.Add("TTTScoringSummaryRender", "Faker_TTTScoringSummaryRender", function(ply, roleFileName, groupingRole, roleColor, name, startingRole, finalRole)
+    AddHook("TTTScoringSummaryRender", "Faker_TTTScoringSummaryRender", function(ply, roleFileName, groupingRole, roleColor, name, startingRole, finalRole)
         if not IsPlayer(ply) then return end
 
         if ply:IsFaker() then
@@ -490,7 +490,7 @@ if CLIENT then
     -- HUD --
     ---------
 
-    hook.Add("HUDPaint", "Faker_HUDPaint", function()
+    AddHook("HUDPaint", "Faker_HUDPaint", function()
         local ply = LocalPlayer()
 
         if not IsValid(ply) or ply:IsSpec() or GetRoundState() ~= ROUND_ACTIVE then return end

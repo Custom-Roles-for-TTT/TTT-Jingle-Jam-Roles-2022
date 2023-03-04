@@ -41,5 +41,30 @@ ttt_faker_notify_confetti               1   // Whether to throw confetti when a 
 ttt_faker_excluded_weapons              "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber" // A comma separated list of weapon classes to exclude from the faker's shop
 ```
 
+## Krampus
+_Suggested By_: Kawaii Five-0\
+The Krampus is an independent role whose goal is to punish naughty players.
+\
+\
+**ConVars**
+```ccp
+ttt_krampus_show_target_icon            0    / Whether krampus have an icon over other players' heads showing who to kill. Server or round must be restarted for changes to take effect.
+ttt_krampus_target_vision_enable        0    // Whether krampus has a visible aura around their target, visible through walls
+ttt_krampus_target_damage_bonus         0.1  // Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)
+ttt_krampus_win_delay_time              60   // The number of seconds to delay a team's win if there are naughty players left
+ttt_krampus_next_target_delay           5    // The delay (in seconds) before an krampus is assigned their next target
+ttt_krampus_is_monster                  0    // Whether krampus should be treated as a member of the monster team (rather than the independent team)
+ttt_krampus_warn                        0    // Whether to enable warning players if there is a krampus. See `ttt_krampus_warn_all` for controlling who can see the warning.
+ttt_krampus_warn_all                    0    // Whether to warn all players if there is a krampus. If 0, only traitors will be warned
+ttt_krampus_naughty_notify              0    // Whether to notify players who are marked as naughty
+ttt_krampus_naughty_traitors            1    // Whether traitors should be automatically marked as naughty
+ttt_krampus_naughty_innocent_damage     1    // Whether players who damage innocents should be marked as naughty
+ttt_krampus_naughty_jester_damage       1    // Whether players who damage jesters should be marked as naughty
+ttt_krampus_release_delay               2    // The number of seconds a victim is stunned for when they released from being carried
+ttt_krampus_carry_duration              30   // The number of seconds a victim can be carried for
+ttt_krampus_struggle_interval           0.25 // The number of seconds between victim struggles while being carried
+ttt_krampus_struggle_reduction          0.25 // The number of seconds a struggle reduces carry duration by
+```
+
 ## Special Thanks
 - [Game icons](https://game-icons.net/) for the role icons
