@@ -697,7 +697,12 @@ if CLIENT then
     AddHook("TTTScoringSecondaryWins", "Krampus_TTTScoringSecondaryWins", function(wintype, secondary_wins)
         if wintype == WIN_KRAMPUS then return end
 
+        local hasKrampus = false
         for _, p in ipairs(GetAllPlayers()) do
+            if p:IsKrampus() then
+                hasKrampus = true
+            end
+
             -- Skip dead players
             if not p:Alive() or p:IsSpec() then continue end
 
@@ -706,6 +711,8 @@ if CLIENT then
                 return
             end
         end
+
+        if not hasKrampus then return end
 
         -- If there are no naughty players remaining then Krampus wins too
         TableInsert(secondary_wins, ROLE_KRAMPUS)
