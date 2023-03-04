@@ -109,8 +109,8 @@ FAKER_MISSING_RANGE = 2
 FAKER_MISSING_BOTH = 3
 
 local function GetFakerState(ply)
-    local los = GetConVar("ttt_faker_line_of_sight_required"):GetBool()
-    local range = GetConVar("ttt_faker_minimum_distance"):GetFloat()
+    local los = GetGlobalBool("ttt_faker_line_of_sight_required", true)
+    local range = SetGlobalFloat("ttt_faker_minimum_distance", 524.9)
     local losply = ply:GetNWString("FakerPlayerInLOS", "")
     local rangeply = ply:GetNWString("FakerPlayerInRange", "")
 
