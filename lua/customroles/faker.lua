@@ -1,12 +1,12 @@
+local ents = ents
 local hook = hook
 local ipairs = ipairs
+local math = math
 local pairs = pairs
 local player = player
 local string = string
 local table = table
-local math = math
 local timer = timer
-local ents = ents
 
 local AddHook = hook.Add
 local GetAllPlayers = player.GetAll

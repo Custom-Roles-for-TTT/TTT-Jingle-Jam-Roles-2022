@@ -1,5 +1,6 @@
 local hook = hook
 local ipairs = ipairs
+local IsValid = IsValid
 local math = math
 local pairs = pairs
 local player = player
