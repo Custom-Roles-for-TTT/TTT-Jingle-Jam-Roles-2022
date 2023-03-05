@@ -119,6 +119,7 @@ function SWEP:Reset()
 
     if CLIENT or not IsValid(ply) then return end
 
+    ply:SetNWBool("KrampusCarryVictim", false)
     ply:SetSolid(plyProps.Solid)
     ply:SetMoveType(MOVETYPE_WALK)
 
@@ -194,6 +195,7 @@ function SWEP:Pickup(ent)
 
     if CLIENT then return end
 
+    self.Victim:SetNWBool("KrampusCarryVictim", true)
     self.VictimProps = {
         Solid = self.Victim:GetSolid(),
         Weapons = {}
@@ -395,9 +397,36 @@ if CLIENT then
             -- If we're being held by the krampus, lock our view in the center but facing the same direction as Krampus
             -- If they aren't being held then the mouse is basically just disabled, preventing them from moving their camera
             -- This lock takes effect in the delay after the victim is dropped by the Krampus
-            if IsValid(krampusWeapon) and IsPlayer(krampusWeapon.Victim) and krampusWeapon.Victim == client then
-                ang = krampus:EyeAngles()
+            if client:GetNWBool("KrampusCarryVictim", false) then
+                local currentYaw = client:EyeAngles().yaw
+                local targetYaw = krampus:EyeAngles().yaw
+
+                local speedMult = 0.001
+                local minSpeed = 0.001
+
+                local dir = currentYaw < targetYaw and 1 or -1
+                local difference = math.abs(currentYaw - targetYaw)
+                if difference > 180 then
+                    dir = dir * -1
+                    difference = 360 - difference
+                end
+
+                local change = difference * speedMult
+                if change < minSpeed then
+                    change = minSpeed
+                end
+
+                currentYaw = currentYaw + change * dir
+
+                -- Yaw ranges from -180 to 180
+                if currentYaw > 180 then
+                    currentYaw = currentYaw - 360
+                elseif currentYaw < -180 then
+                    currentYaw = currentYaw + 360
+                end
+
                 ang.pitch = 0
+                ang.yaw = currentYaw
                 cmd:SetViewAngles(ang)
             end
 

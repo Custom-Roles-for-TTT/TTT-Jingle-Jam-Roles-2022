@@ -329,6 +329,7 @@ if SERVER then
 
     local function ResetKrampusState(ply)
         ply.KrampusNaughtyKilled = nil
+        ply:SetNWBool("KrampusCarryVictim", false)
         ply:SetNWString("KrampusTarget", "")
         ply:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
         ply:SetNWFloat("KrampusDelayEnd", 0)
