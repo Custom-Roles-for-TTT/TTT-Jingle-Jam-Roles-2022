@@ -324,7 +324,7 @@ if CLIENT then
 
     -- Victim
 
-    surface.CreateFont("KrampusStruggle", {
+    surface.CreateFont("KrampusEscape", {
         font = "Trebuchet24",
         size = 18,
         weight = 600
@@ -390,7 +390,21 @@ if CLIENT then
                 return
             end
             CRHUD:PaintBar(8, x, y, width, height, colors, percentage)
-            draw.SimpleText("PRESS " .. Key("+forward", "W") .. " TO STRUGGLE", "KrampusStruggle", ScrW() / 2, y + 3, COLOR_WHITE, TEXT_ALIGN_CENTER)
+            draw.TextShadow({
+                text = ROLE_STRINGS[ROLE_KRAMPUS] .. " has a hold of you!",
+                font = "KrampusEscape",
+                pos = { ScrW() / 2, y - height + 3 },
+                color = COLOR_WHITE,
+                xalign = TEXT_ALIGN_CENTER
+            }, 1, 255)
+            draw.SimpleText("ESCAPE PROGRESS", "KrampusEscape", ScrW() / 2, y + 3, COLOR_WHITE, TEXT_ALIGN_CENTER)
+            draw.TextShadow({
+                text = "Press " .. Key("+forward", "W") .. " repeatedly to struggle",
+                font = "KrampusEscape",
+                pos = { ScrW() / 2, y + height + 3 },
+                color = COLOR_WHITE,
+                xalign = TEXT_ALIGN_CENTER
+            }, 1, 255)
         end)
 
         -- Increase progress every time they press the struggle button
