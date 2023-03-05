@@ -58,19 +58,21 @@ function SWEP:Initialize()
         self:AddHUDHelp("kra_carry_help_pri", "kra_carry_help_sec", true)
     end
 
-    -- Don't let the held player pickup weapons
-    AddHook("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
-        if ply == self.Victim then
-            return false
-        end
-    end)
+    if SERVER then
+        -- Don't let the held player pickup weapons
+        AddHook("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
+            if ply == self.Victim then
+                return false
+            end
+        end)
 
-    -- Prevent fall damage while being carried
-    AddHook("EntityTakeDamage", "Krampus_EntityTakeDamage_" .. self:EntIndex(), function(ent, dmginfo)
-        if IsPlayer(ent) and ent == self.Victim and dmginfo:IsFallDamage() then
-            return true
-        end
-    end)
+        -- Prevent fall damage while being carried
+        AddHook("EntityTakeDamage", "Krampus_EntityTakeDamage_" .. self:EntIndex(), function(ent, dmginfo)
+            if IsPlayer(ent) and ent == self.Victim and dmginfo:IsFallDamage() then
+                return true
+            end
+        end)
+    end
 
     return self.BaseClass.Initialize(self)
 end
@@ -102,6 +104,7 @@ function SWEP:UpdateVictimPosition()
     local owner = self:GetOwner()
     self.Victim:SetPos(owner:LocalToWorld(Vector(35, 0, 0)))
     self.Victim:SetEyeAngles(owner:GetAngles())
+    self.Victim:SetMoveType(MOVETYPE_NOCLIP)
 end
 
 function SWEP:Reset()
@@ -116,6 +119,7 @@ function SWEP:Reset()
     if CLIENT or not IsValid(ply) then return end
 
     ply:SetSolid(plyProps.Solid)
+    ply:SetMoveType(MOVETYPE_WALK)
 
     -- If this Reset is becauses they died, just drop them
     if ply:Alive() and not ply:IsSpec() then
