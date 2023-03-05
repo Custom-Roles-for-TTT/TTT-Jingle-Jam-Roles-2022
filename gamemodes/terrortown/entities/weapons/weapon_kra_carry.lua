@@ -13,6 +13,7 @@ local util = util
 local AddHook = hook.Add
 local EntsFindAlongRay = ents.FindAlongRay
 local MathClamp = math.Clamp
+local MathRandom = math.random
 local TableInsert = table.insert
 local TraceLine = util.TraceLine
 local RemoveHook = hook.Remove
@@ -304,6 +305,17 @@ if SERVER then
     util.AddNetworkString("KrampusCarryEnd")
     util.AddNetworkString("KrampusVictimCarryStart")
     util.AddNetworkString("KrampusVictimCarryEnd")
+    util.AddNetworkString("KrampusVictimStruggle")
+
+    resource.AddSingleFile("sound/krampus/struggle1.mp3")
+    resource.AddSingleFile("sound/krampus/struggle2.mp3")
+    resource.AddSingleFile("sound/krampus/struggle3.mp3")
+
+    local struggle_sounds = {
+        Sound("krampus/struggle1.mp3"),
+        Sound("krampus/struggle2.mp3"),
+        Sound("krampus/struggle3.mp3")
+    }
 
     net.Receive("KrampusVictimCarryEnd", function(len, ply)
         local entIdx = net.ReadUInt(16)
@@ -313,9 +325,18 @@ if SERVER then
 
         wep:Reset()
     end)
+
+    net.Receive("KrampusVictimStruggle", function(len, ply)
+        if not IsPlayer(ply) or not ply:Alive() or ply:IsSpec() then return end
+
+        local idx = MathRandom(1, #struggle_sounds)
+        local chosen_sound = struggle_sounds[idx]
+        sound.Play(chosen_sound, ply:GetPos())
+    end)
 end
 
 if CLIENT then
+
     -- Krampus
 
     net.Receive("KrampusCarryStart", function()
@@ -435,6 +456,8 @@ if CLIENT then
             if CurTime() > nextStruggle then
                 nextStruggle = CurTime() + struggleInterval
                 endTime = endTime - struggleReduction
+                net.Start("KrampusVictimStruggle")
+                net.SendToServer()
             end
         end)
     end)
