@@ -13,6 +13,8 @@ local util = util
 local AddHook = hook.Add
 local EntsFindAlongRay = ents.FindAlongRay
 local MathClamp = math.Clamp
+local MathRandom = math.random
+local MathAbs = math.abs
 local TableInsert = table.insert
 local TraceLine = util.TraceLine
 local RemoveHook = hook.Remove
@@ -58,19 +60,21 @@ function SWEP:Initialize()
         self:AddHUDHelp("kra_carry_help_pri", "kra_carry_help_sec", true)
     end
 
-    -- Don't let the held player pickup weapons
-    AddHook("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
-        if ply == self.Victim then
-            return false
-        end
-    end)
+    if SERVER then
+        -- Don't let the held player pickup weapons
+        AddHook("PlayerCanPickupWeapon", "Krampus_PlayerCanPickupWeapon_" .. self:EntIndex(), function(ply, wep)
+            if ply == self.Victim then
+                return false
+            end
+        end)
 
-    -- Prevent fall damage while being carried
-    AddHook("EntityTakeDamage", "Krampus_EntityTakeDamage_" .. self:EntIndex(), function(ent, dmginfo)
-        if IsPlayer(ent) and ent == self.Victim and dmginfo:IsFallDamage() then
-            return true
-        end
-    end)
+        -- Prevent fall damage while being carried
+        AddHook("EntityTakeDamage", "Krampus_EntityTakeDamage_" .. self:EntIndex(), function(ent, dmginfo)
+            if IsPlayer(ent) and ent == self.Victim and dmginfo:IsFallDamage() then
+                return true
+            end
+        end)
+    end
 
     return self.BaseClass.Initialize(self)
 end
@@ -102,6 +106,7 @@ function SWEP:UpdateVictimPosition()
     local owner = self:GetOwner()
     self.Victim:SetPos(owner:LocalToWorld(Vector(35, 0, 0)))
     self.Victim:SetEyeAngles(owner:GetAngles())
+    self.Victim:SetMoveType(MOVETYPE_NOCLIP)
 end
 
 function SWEP:Reset()
@@ -115,15 +120,20 @@ function SWEP:Reset()
 
     if CLIENT or not IsValid(ply) then return end
 
+    ply:SetNWBool("KrampusCarryVictim", false)
     ply:SetSolid(plyProps.Solid)
+    ply:SetMoveType(MOVETYPE_WALK)
 
     -- If this Reset is becauses they died, just drop them
     if ply:Alive() and not ply:IsSpec() then
         -- Move the player up a little bit to make sure they don't get stuck in the ground
-        local newPos = owner:LocalToWorld(Vector(50, 0, 5))
+        local newPos = owner:LocalToWorld(Vector(75, 0, 5))
 
         -- Prevent player from getting stuck in the world
-        while true do
+        local found = false
+        local attempts = 0
+        while true and attempts < 10 do
+            attempts = attempts + 1
             local tr = TraceLine({
                 start = newPos,
                 endpos = newPos
@@ -131,18 +141,29 @@ function SWEP:Reset()
             if tr.Hit then
                 newPos.z = newPos.z + 10
             else
+                found = true
                 break
             end
         end
 
         -- Prevent player from getting stuck in other players
-        while true do
+        found = false
+        attempts = 0
+        while true and attempts < 10 do
+            attempts = attempts + 1
             local foundEnts = EntsFindAlongRay(newPos, newPos)
             if #foundEnts > 1 then
                 newPos.z = newPos.z + 10
             else
+                found = true
                 break
             end
+        end
+
+        -- If we failed to find a suitable place, just put them literally in the krampus
+        -- The players can figure out what to do from there
+        if not found then
+            newPos = owner:GetPos()
         end
 
         ply:SetPos(newPos)
@@ -175,6 +196,7 @@ function SWEP:Pickup(ent)
 
     if CLIENT then return end
 
+    self.Victim:SetNWBool("KrampusCarryVictim", true)
     self.VictimProps = {
         Solid = self.Victim:GetSolid(),
         Weapons = {}
@@ -286,6 +308,17 @@ if SERVER then
     util.AddNetworkString("KrampusCarryEnd")
     util.AddNetworkString("KrampusVictimCarryStart")
     util.AddNetworkString("KrampusVictimCarryEnd")
+    util.AddNetworkString("KrampusVictimStruggle")
+
+    resource.AddSingleFile("sound/krampus/struggle1.mp3")
+    resource.AddSingleFile("sound/krampus/struggle2.mp3")
+    resource.AddSingleFile("sound/krampus/struggle3.mp3")
+
+    local struggle_sounds = {
+        Sound("krampus/struggle1.mp3"),
+        Sound("krampus/struggle2.mp3"),
+        Sound("krampus/struggle3.mp3")
+    }
 
     net.Receive("KrampusVictimCarryEnd", function(len, ply)
         local entIdx = net.ReadUInt(16)
@@ -295,9 +328,18 @@ if SERVER then
 
         wep:Reset()
     end)
+
+    net.Receive("KrampusVictimStruggle", function(len, ply)
+        if not IsPlayer(ply) or not ply:Alive() or ply:IsSpec() then return end
+
+        local idx = MathRandom(1, #struggle_sounds)
+        local chosen_sound = struggle_sounds[idx]
+        sound.Play(chosen_sound, ply:GetPos())
+    end)
 end
 
 if CLIENT then
+
     -- Krampus
 
     net.Receive("KrampusCarryStart", function()
@@ -324,7 +366,7 @@ if CLIENT then
 
     -- Victim
 
-    surface.CreateFont("KrampusStruggle", {
+    surface.CreateFont("KrampusEscape", {
         font = "Trebuchet24",
         size = 18,
         weight = 600
@@ -353,10 +395,42 @@ if CLIENT then
         AddHook("InputMouseApply", "Krampus_Victim_InputMouseApply_" .. entIdx, function(cmd, x, y, ang)
             if not client:Alive() or client:IsSpec() then return end
 
-            -- Lock view in the center, but facing the same direction as Krampus
-            ang = krampus:EyeAngles()
-            ang.pitch = 0
-            cmd:SetViewAngles(ang)
+            -- If we're being held by the krampus, lock our view in the center but facing the same direction as Krampus
+            -- If they aren't being held then the mouse is basically just disabled, preventing them from moving their camera
+            -- This lock takes effect in the delay after the victim is dropped by the Krampus
+            if client:GetNWBool("KrampusCarryVictim", false) then
+                local currentYaw = client:EyeAngles().yaw
+                local targetYaw = krampus:EyeAngles().yaw
+
+                local speedMult = 0.001
+                local minSpeed = 0.001
+
+                local dir = currentYaw < targetYaw and 1 or -1
+                local difference = MathAbs(currentYaw - targetYaw)
+                if difference > 180 then
+                    dir = dir * -1
+                    difference = 360 - difference
+                end
+
+                local change = difference * speedMult
+                if change < minSpeed then
+                    change = minSpeed
+                end
+
+                currentYaw = currentYaw + change * dir
+
+                -- Yaw ranges from -180 to 180
+                if currentYaw > 180 then
+                    currentYaw = currentYaw - 360
+                elseif currentYaw < -180 then
+                    currentYaw = currentYaw + 360
+                end
+
+                ang.pitch = 0
+                ang.yaw = currentYaw
+                cmd:SetViewAngles(ang)
+            end
+
             return true
         end)
 
@@ -390,7 +464,21 @@ if CLIENT then
                 return
             end
             CRHUD:PaintBar(8, x, y, width, height, colors, percentage)
-            draw.SimpleText("PRESS " .. Key("+forward", "W") .. " TO STRUGGLE", "KrampusStruggle", ScrW() / 2, y + 3, COLOR_WHITE, TEXT_ALIGN_CENTER)
+            draw.TextShadow({
+                text = ROLE_STRINGS[ROLE_KRAMPUS] .. " has a hold of you!",
+                font = "KrampusEscape",
+                pos = { ScrW() / 2, y - height + 3 },
+                color = COLOR_WHITE,
+                xalign = TEXT_ALIGN_CENTER
+            }, 1, 255)
+            draw.SimpleText("ESCAPE PROGRESS", "KrampusEscape", ScrW() / 2, y + 3, COLOR_WHITE, TEXT_ALIGN_CENTER)
+            draw.TextShadow({
+                text = "Press " .. Key("+forward", "W") .. " repeatedly to struggle",
+                font = "KrampusEscape",
+                pos = { ScrW() / 2, y + height + 3 },
+                color = COLOR_WHITE,
+                xalign = TEXT_ALIGN_CENTER
+            }, 1, 255)
         end)
 
         -- Increase progress every time they press the struggle button
@@ -403,6 +491,8 @@ if CLIENT then
             if CurTime() > nextStruggle then
                 nextStruggle = CurTime() + struggleInterval
                 endTime = endTime - struggleReduction
+                net.Start("KrampusVictimStruggle")
+                net.SendToServer()
             end
         end)
     end)

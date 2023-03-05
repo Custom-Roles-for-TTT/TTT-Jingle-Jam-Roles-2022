@@ -77,3 +77,4 @@ ttt_krampus_struggle_reduction          0.25 // The number of seconds a struggle
 
 ## Special Thanks
 - [Game icons](https://game-icons.net/) for the role icons
+- [DBKEEBLER](https://freesound.org/people/DBKEEBLER/sounds/403684/) on FreeSound.org for the Krampus' victim struggle sounds

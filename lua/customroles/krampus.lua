@@ -329,6 +329,7 @@ if SERVER then
 
     local function ResetKrampusState(ply)
         ply.KrampusNaughtyKilled = nil
+        ply:SetNWBool("KrampusCarryVictim", false)
         ply:SetNWString("KrampusTarget", "")
         ply:SetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
         ply:SetNWFloat("KrampusDelayEnd", 0)
@@ -393,9 +394,9 @@ if SERVER then
         if not ply:IsActiveKrampus() then return end
         if not krampus_target_vision_enable:GetBool() and not krampus_show_target_icon:GetBool() then return end
 
-        local target_nick = ply:GetNWString("KrampusTarget", "")
+        local target_sid64 = ply:GetNWString("KrampusTarget", "")
         for _, v in ipairs(GetAllPlayers()) do
-            if v:SteamID64() ~= target_nick then continue end
+            if v:SteamID64() ~= target_sid64 then continue end
             if ply:TestPVS(v) then continue end
 
             local pos = v:GetPos()
@@ -406,6 +407,21 @@ if SERVER then
             -- Krampus can only have one target so if we found them don't bother looping anymore
             break
         end
+
+        if not ply.GetActiveWeapon then return end
+
+        -- If the Krampus is not using their carry weapon then we don't need any more logic
+        local weap = ply:GetActiveWeapon()
+        if not IsValid(weap) or WEPS.GetClass(weap) ~= "weapon_kra_carry" then return end
+
+        -- Likewise, if they aren't carrying someone then we're done here
+        if not IsPlayer(weap.Victim) then return end
+
+        -- If the person they are carrying is their target then the loop above already handles this
+        if weap.Victim:SteamID64() == target_sid64 then return end
+
+        -- If we got here then the Krampus is carrying someone who is not their target and they should be added to the PVS
+        AddOriginToPVS(weap.Victim:GetPos())
     end)
 
     ------------------
