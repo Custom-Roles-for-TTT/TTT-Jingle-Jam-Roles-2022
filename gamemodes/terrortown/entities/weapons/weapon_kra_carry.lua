@@ -120,10 +120,13 @@ function SWEP:Reset()
     -- If this Reset is becauses they died, just drop them
     if ply:Alive() and not ply:IsSpec() then
         -- Move the player up a little bit to make sure they don't get stuck in the ground
-        local newPos = owner:LocalToWorld(Vector(50, 0, 5))
+        local newPos = owner:LocalToWorld(Vector(75, 0, 5))
 
         -- Prevent player from getting stuck in the world
-        while true do
+        local found = false
+        local attempts = 0
+        while true and attempts < 10 do
+            attempts = attempts + 1
             local tr = TraceLine({
                 start = newPos,
                 endpos = newPos
@@ -131,18 +134,29 @@ function SWEP:Reset()
             if tr.Hit then
                 newPos.z = newPos.z + 10
             else
+                found = true
                 break
             end
         end
 
         -- Prevent player from getting stuck in other players
-        while true do
+        found = false
+        attempts = 0
+        while true and attempts < 10 do
+            attempts = attempts + 1
             local foundEnts = EntsFindAlongRay(newPos, newPos)
             if #foundEnts > 1 then
                 newPos.z = newPos.z + 10
             else
+                found = true
                 break
             end
+        end
+
+        -- If we failed to find a suitable place, just put them literally in the krampus
+        -- The players can figure out what to do from there
+        if not found then
+            newPos = owner:GetPos()
         end
 
         ply:SetPos(newPos)
