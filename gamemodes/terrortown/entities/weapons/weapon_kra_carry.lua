@@ -392,10 +392,15 @@ if CLIENT then
         AddHook("InputMouseApply", "Krampus_Victim_InputMouseApply_" .. entIdx, function(cmd, x, y, ang)
             if not client:Alive() or client:IsSpec() then return end
 
-            -- Lock view in the center, but facing the same direction as Krampus
-            ang = krampus:EyeAngles()
-            ang.pitch = 0
-            cmd:SetViewAngles(ang)
+            -- If we're being held by the krampus, lock our view in the center but facing the same direction as Krampus
+            -- If they aren't being held then the mouse is basically just disabled, preventing them from moving their camera
+            -- This lock takes effect in the delay after the victim is dropped by the Krampus
+            if IsValid(krampusWeapon) and IsPlayer(krampusWeapon.Victim) and krampusWeapon.Victim == client then
+                ang = krampus:EyeAngles()
+                ang.pitch = 0
+                cmd:SetViewAngles(ang)
+            end
+
             return true
         end)
 
