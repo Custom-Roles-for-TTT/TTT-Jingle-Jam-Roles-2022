@@ -14,6 +14,7 @@ local AddHook = hook.Add
 local EntsFindAlongRay = ents.FindAlongRay
 local MathClamp = math.Clamp
 local MathRandom = math.random
+local MathAbs = math.abs
 local TableInsert = table.insert
 local TraceLine = util.TraceLine
 local RemoveHook = hook.Remove
