@@ -405,7 +405,7 @@ if CLIENT then
                 local minSpeed = 0.001
 
                 local dir = currentYaw < targetYaw and 1 or -1
-                local difference = math.abs(currentYaw - targetYaw)
+                local difference = MathAbs(currentYaw - targetYaw)
                 if difference > 180 then
                     dir = dir * -1
                     difference = 360 - difference
