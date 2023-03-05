@@ -157,8 +157,10 @@ if SERVER then
             local name = names[namePick]
             SetGlobalString("ttt_detectoclown_name", name)
             UpdateRoleStrings()
-            net.Start("TTT_UpdateRoleNames")
-            net.Broadcast()
+			timer.Simple(0.5, function()
+				net.Start("TTT_UpdateRoleNames")
+				net.Broadcast()
+			end)
         end)
     end
 
