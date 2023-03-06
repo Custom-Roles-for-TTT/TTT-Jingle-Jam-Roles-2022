@@ -111,6 +111,7 @@ TableInsert(ROLE.convars, {
 KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1
 KRAMPUS_NAUGHTY_KILL = 2
+KRAMPUS_NAUGHTY_OTHER = 3
 
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
@@ -187,6 +188,10 @@ if SERVER then
     -----------------------
 
     local function MarkPlayerNaughty(ply, naughty_type)
+        -- If someone is already naughty, don't bother setting (and notifying) them again
+        local current_naughty = ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
+        if current_naughty > KRAMPUS_NAUGHTY_NONE then return end
+
         ply:SetNWInt("KrampusNaughty", naughty_type)
 
         -- Alert players when they become naughty due to some reason other than being on a "naughty" team
