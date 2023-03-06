@@ -187,15 +187,15 @@ if SERVER then
     -- TARGET ASSIGNMENT --
     -----------------------
 
-    local function MarkPlayerNaughty(ply, naughty_type)
+    function MarkPlayerNaughty(ply, naughty_type)
         -- If someone is already naughty, don't bother setting (and notifying) them again
         local current_naughty = ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE)
         if current_naughty > KRAMPUS_NAUGHTY_NONE then return end
 
         ply:SetNWInt("KrampusNaughty", naughty_type)
 
-        -- Alert players when they become naughty due to some reason other than being on a "naughty" team
-        if krampus_naughty_notify:GetBool() and naughty_type > KRAMPUS_NAUGHTY_TEAM then
+        -- Alert players when they become naughty
+        if krampus_naughty_notify:GetBool() then
             local message = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " has decided that you are naughty... Watch out!"
             ply:PrintMessage(HUD_PRINTCENTER, message)
             ply:PrintMessage(HUD_PRINTTALK, message)
