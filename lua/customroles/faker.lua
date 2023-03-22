@@ -92,10 +92,10 @@ ROLE.translations = {
 
 ROLE.onroleassigned = function(ply)
     ply:SetNWInt("FakerFakeCount", 0)
-    ply:SetNWString("FakerFakesUsed", "")
-    ply:SetNWString("FakerFakesBought", "")
     ply:SetNWString("FakerPlayerInLOS", "")
     ply:SetNWString("FakerPlayerInRange", "")
+    ply.FakerFakesUsed = {}
+    ply.FakerFakesBought = {}
 end
 
 RegisterRole(ROLE)
@@ -108,6 +108,10 @@ FAKER_READY = 0
 FAKER_MISSING_LOS = 1
 FAKER_MISSING_RANGE = 2
 FAKER_MISSING_BOTH = 3
+
+FAKER_WEAPON_NONE = 0
+FAKER_WEAPON_FAKE = 1
+FAKER_WEAPON_USED = 2
 
 local function GetFakerState(ply)
     local los = GetGlobalBool("ttt_faker_line_of_sight_required", true)
@@ -142,7 +146,7 @@ if SERVER then
     AddCSLuaFile()
 
     local faker_required_fakes = CreateConVar("ttt_faker_required_fakes", "3", FCVAR_NONE, "The required number of fakes weapons that need to be used for the faker to win the round", 0, 10)
-    local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber")
+    local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,weapon_ttt_chickennade,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber")
     local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15", FCVAR_NONE, "The amount of time (in seconds) after using a fake weapon before the faker is given a credit", 0, 60)
     local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1")
     local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10", FCVAR_NONE, "The minimum distance (in metres) the faker must be from another player for their fake weapon use to count", 0, 30)
@@ -153,6 +157,7 @@ if SERVER then
 
     util.AddNetworkString("TTT_UpdateFakerWins")
     util.AddNetworkString("TTT_UpdateFakerWeaponKind")
+    util.AddNetworkString("TTT_PlayFakerSound")
 
     AddHook("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
         SetGlobalInt("ttt_faker_required_fakes", faker_required_fakes:GetInt())
@@ -219,21 +224,13 @@ if SERVER then
         if ply:IsFaker() and not is_item then
             local wep = ply:GetWeapon(id)
 
-            local fakesbought = {}
-            local fakesboughtstr = ply:GetNWString("FakerFakesBought", "")
-            for fake in StringGMatch(fakesboughtstr, "([^,]+)") do
-                TableInsert(fakesbought, fake:Trim())
-            end
-
-            if TableHasValue(fakesbought, id) then
+            if TableHasValue(ply.FakerFakesBought, id) then
                 ply:PrintMessage(HUD_PRINTTALK, "You have already used this weapon! Credit refunded.")
                 ply:PrintMessage(HUD_PRINTCENTER, "You have already used this weapon! Credit refunded.")
                 ply:AddCredits(1)
                 wep:Remove()
             else
-                TableInsert(fakesbought, id)
-                fakesboughtstr = TableConcat(fakesbought, ",")
-                ply:SetNWString("FakerFakesBought", fakesboughtstr)
+                TableInsert(ply.FakerFakesBought, id)
 
                 if wep.Primary then
                     wep.Primary.Damage = 0
@@ -243,11 +240,20 @@ if SERVER then
                 end
                 wep.AllowDropOrig = wep.AllowDrop
                 wep.AllowDrop = false
-                wep.IsFakerFake = true
+                wep.FakerWeaponState = FAKER_WEAPON_FAKE
+                wep.NextFakerWarning = CurTime()
+
+                wep.OnDropOrig = wep.OnDrop
+                wep.OnDrop = function(w)
+                    w:OnDropOrig()
+                    if IsValid(w) then
+                        w:Remove()
+                    end
+                end
 
                 -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
                 if wep.Kind <= 8 then
-                    wep.Kind = WEAPON_ROLE + TableCount(fakesbought)
+                    wep.Kind = WEAPON_ROLE + TableCount(ply.FakerFakesBought)
 
                     net.Start("TTT_UpdateFakerWeaponKind")
                     net.WriteString(id)
@@ -260,38 +266,41 @@ if SERVER then
         end
     end)
 
-    AddHook("KeyPress", "Faker_KeyPress", function(ply, key)
-        if not ply:IsActiveFaker() or key ~= IN_ATTACK then return end
+    AddHook("SetupMove", "Faker_SetupMove", function(ply, mv, cmd)
+        if not ply:IsActiveFaker() or not mv:KeyDown(IN_ATTACK) then return end
 
         local wep = ply:GetActiveWeapon()
         if not wep:IsValid() then return end
-        if not wep.IsFakerFake then return end
+        if not wep.FakerWeaponState or wep.FakerWeaponState ~= FAKER_WEAPON_FAKE then return end
         if wep.GetNextPrimaryFire and wep:GetNextPrimaryFire() > CurTime() then return end
 
-        if wep.Primary and wep.Primary.ClipSize and wep.Primary.ClipSize > 0 and wep:Clip1() <= 0 then
-            wep:SetClip1(wep.Primary.ClipSize)
-        end
-
-        local fakesused = {}
-        local fakesusedstr = ply:GetNWString("FakerFakesUsed", "")
-        for fake in StringGMatch(fakesusedstr, "([^,]+)") do
-            TableInsert(fakesused, fake:Trim())
+        if wep.Primary and wep.Primary.ClipSize and wep.Primary.ClipSize > 0 then
+            timer.Simple(0.1, function()
+                wep:SetClip1(wep.Primary.ClipSize) -- We do this after a slight delay so the clip is always full instead of missing a single round
+            end)
         end
 
         local class = WEPS.GetClass(wep)
-        if TableHasValue(fakesused, class) then return end
+        if TableHasValue(ply.FakerFakesUsed, class) then return end
 
+        local snd = nil
         local state = GetFakerState(ply)
         if state == FAKER_READY then
-            TableInsert(fakesused, class)
-            fakesusedstr = TableConcat(fakesused, ",")
-            ply:SetNWString("FakerFakesUsed", fakesusedstr)
+            TableInsert(ply.FakerFakesUsed, class)
+            wep.FakerWeaponState = FAKER_WEAPON_USED
+            wep.AllowDrop = wep.AllowDropOrig
+
+            local suffix = ""
+            if wep.AllowDrop then
+                suffix = " You can now drop your old weapon."
+            end
 
             local count = ply:GetNWInt("FakerFakeCount", 0) + 1
             ply:SetNWInt("FakerFakeCount", count)
+            snd = "buttons/bell1.wav"
             if count >= faker_required_fakes:GetInt() then
-                ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!")
-                ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!")
+                ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!" .. suffix)
+                ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!" .. suffix)
             else
                 local delay = faker_credits_timer:GetInt()
                 if delay == 0 then
@@ -303,8 +312,8 @@ if SERVER then
                     if delay == 1 then
                         seconds = " second."
                     end
-                    ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds)
-                    ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds)
+                    ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds .. suffix)
+                    ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds .. suffix)
                     TimerCreate(ply:SteamID64() .. "FakerCreditTimer", delay, 1, function()
                         ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
                         ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
@@ -313,13 +322,22 @@ if SERVER then
                 end
             end
         else
-            if state == FAKER_MISSING_BOTH then
-                ply:PrintMessage(HUD_PRINTTALK, "You need to be close to and within line of sight of another player for your fake weapon use to count.")
-            elseif state == FAKER_MISSING_LOS then
-                ply:PrintMessage(HUD_PRINTTALK, "You need to be within line of sight of another player for your fake weapon use to count.")
-            elseif state == FAKER_MISSING_RANGE then
-                ply:PrintMessage(HUD_PRINTTALK, "You need to be close to another player for your fake weapon use to count.")
+            if wep.NextFakerWarning < CurTime() then
+                snd = "buttons/button11.wav"
+                if state == FAKER_MISSING_BOTH then
+                    ply:PrintMessage(HUD_PRINTTALK, "You need to be close to and within line of sight of another player for your fake weapon use to count.")
+                elseif state == FAKER_MISSING_LOS then
+                    ply:PrintMessage(HUD_PRINTTALK, "You need to be within line of sight of another player for your fake weapon use to count.")
+                elseif state == FAKER_MISSING_RANGE then
+                    ply:PrintMessage(HUD_PRINTTALK, "You need to be close to another player for your fake weapon use to count.")
+                end
+                wep.NextFakerWarning = CurTime() + 3
             end
+        end
+        if snd then
+            net.Start("TTT_PlayFakerSound")
+            net.WriteString(snd)
+            net.Send(ply)
         end
     end)
 
@@ -362,7 +380,7 @@ if SERVER then
         if not ply:IsFaker() then return end
 
         for _, wep in pairs(ply:GetWeapons()) do
-            if wep.IsFakerFake then
+            if wep.FakerWeaponState and wep.FakerWeaponState >= FAKER_WEAPON_FAKE then
                 ply:StripWeapon(wep:GetClass())
             end
         end
@@ -377,18 +395,14 @@ if SERVER then
                     return "The " .. ROLE_STRINGS[ROLE_FAKER] .. " has been killed!"
                 end)
 
-        local fakesbought = {}
-        for fake in StringGMatch(victim:GetNWString("FakerFakesBought", ""), "([^,]+)") do
-            TableInsert(fakesbought, fake:Trim())
-        end
-        local drops = MathMin(faker_drop_weapons_on_death:GetInt(), #fakesbought)
+        local drops = MathMin(faker_drop_weapons_on_death:GetInt(), #victim.FakerFakesBought)
         timer.Create("FakerWeaponDrop", 0.05, drops, function()
             local ragdoll = victim.server_ragdoll or victim:GetRagdollEntity()
             local pos = ragdoll:GetPos() + Vector(0, 0, 25)
 
-            local idx = MathRandom(1, #fakesbought)
-            local wep = fakesbought[idx]
-            table.remove(fakesbought, idx)
+            local idx = MathRandom(1, #victim.FakerFakesBought)
+            local wep = victim.FakerFakesBought[idx]
+            table.remove(victim.FakerFakesBought, idx)
             local ent = CreateEntity(wep)
             ent:SetPos(pos)
             ent:Spawn()
@@ -424,10 +438,10 @@ if SERVER then
     AddHook("TTTPrepareRound", "Faker_PrepareRound", function()
         for _, p in ipairs(GetAllPlayers()) do
             p:SetNWInt("FakerFakeCount", 0)
-            p:SetNWString("FakerFakesUsed", "")
-            p:SetNWString("FakerFakesBought", "")
             p:SetNWString("FakerPlayerInLOS", "")
             p:SetNWString("FakerPlayerInRange", "")
+            p.FakerFakesUsed = {}
+            p.FakerFakesBought = {}
         end
     end)
 end
@@ -592,6 +606,15 @@ if CLIENT then
                 surface.DrawText(text)
             end
         end
+    end)
+
+    ------------
+    -- SOUNDS --
+    ------------
+
+    net.Receive("TTT_PlayFakerSound", function()
+        local snd = net.ReadString()
+        surface.PlaySound(snd)
     end)
 
     --------------
