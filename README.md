@@ -44,7 +44,7 @@ ttt_faker_drop_weapons_on_death         3   // The maximum number of weapons the
 ttt_faker_notify_mode                   4   // The logic to use when notifying players that a faker is killed. 0 - Don't notify anyone. 1 - Only notify traitors and detective. 2 - Only notify traitors. 3 - Only notify detective. 4 - Notify everyone
 ttt_faker_notify_sound                  1   // Whether to play a cheering sound when a faker is killed
 ttt_faker_notify_confetti               1   // Whether to throw confetti when a faker is a killed
-ttt_faker_excluded_weapons              "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber" // A comma separated list of weapon classes to exclude from the faker's shop
+ttt_faker_excluded_weapons              "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickennade,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber" // A comma separated list of weapon classes to exclude from the faker's shop
 ```
 
 ## Krampus

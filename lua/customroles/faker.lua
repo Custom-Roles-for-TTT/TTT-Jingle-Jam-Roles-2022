@@ -11,7 +11,6 @@ local timer = timer
 local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
 local StringGMatch = string.gmatch
-local TableConcat = table.concat
 local TableCount = table.Count
 local TableHasValue = table.HasValue
 local TableInsert = table.insert
@@ -98,6 +97,8 @@ ROLE.onroleassigned = function(ply)
     ply.FakerFakesBought = {}
 end
 
+ROLE.haspassivewin = true
+
 RegisterRole(ROLE)
 
 ----------------------
@@ -146,7 +147,7 @@ if SERVER then
     AddCSLuaFile()
 
     local faker_required_fakes = CreateConVar("ttt_faker_required_fakes", "3", FCVAR_NONE, "The required number of fakes weapons that need to be used for the faker to win the round", 0, 10)
-    local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,weapon_ttt_chickennade,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber")
+    local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickennade,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber")
     local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15", FCVAR_NONE, "The amount of time (in seconds) after using a fake weapon before the faker is given a credit", 0, 60)
     local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1")
     local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10", FCVAR_NONE, "The minimum distance (in metres) the faker must be from another player for their fake weapon use to count", 0, 30)
