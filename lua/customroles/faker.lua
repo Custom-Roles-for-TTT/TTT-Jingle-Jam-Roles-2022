@@ -12,6 +12,7 @@ local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
 local StringGMatch = string.gmatch
 local TableConcat = table.concat
+local TableCount = table.Count
 local TableHasValue = table.HasValue
 local TableInsert = table.insert
 local TimerCreate = timer.Create
@@ -151,6 +152,7 @@ if SERVER then
     CreateConVar("ttt_faker_notify_confetti", "1")
 
     util.AddNetworkString("TTT_UpdateFakerWins")
+    util.AddNetworkString("TTT_UpdateFakerWeaponKind")
 
     AddHook("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
         SetGlobalInt("ttt_faker_required_fakes", faker_required_fakes:GetInt())
@@ -233,13 +235,24 @@ if SERVER then
                 fakesboughtstr = TableConcat(fakesbought, ",")
                 ply:SetNWString("FakerFakesBought", fakesboughtstr)
 
-                wep.Primary.Damage = 0
+                if wep.Primary then
+                    wep.Primary.Damage = 0
+                end
+                if wep.Secondary then
+                    wep.Secondary.Damage = 0
+                end
+                wep.AllowDropOrig = wep.AllowDrop
                 wep.AllowDrop = false
                 wep.IsFakerFake = true
 
                 -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
                 if wep.Kind <= 8 then
-                    wep.Kind = WEAPON_ROLE
+                    wep.Kind = WEAPON_ROLE + TableCount(fakesbought)
+
+                    net.Start("TTT_UpdateFakerWeaponKind")
+                    net.WriteString(id)
+                    net.WriteUInt(wep.Kind, 16)
+                    net.Send(ply)
                 end
                 -- Mark this as a role weapon so Randomats and things like that don't mess with it
                 wep.Category = WEAPON_CATEGORY_ROLE
@@ -255,9 +268,8 @@ if SERVER then
         if not wep.IsFakerFake then return end
         if wep.GetNextPrimaryFire and wep:GetNextPrimaryFire() > CurTime() then return end
 
-        local clip = wep.Primary.ClipSize
-        if clip and clip > 0 and wep:Clip1() <= 0 then
-            wep:SetClip1(clip)
+        if wep.Primary and wep.Primary.ClipSize and wep.Primary.ClipSize > 0 and wep:Clip1() <= 0 then
+            wep:SetClip1(wep.Primary.ClipSize)
         end
 
         local fakesused = {}
@@ -266,7 +278,7 @@ if SERVER then
             TableInsert(fakesused, fake:Trim())
         end
 
-        local class = wep:GetClass()
+        local class = WEPS.GetClass(wep)
         if TableHasValue(fakesused, class) then return end
 
         local state = GetFakerState(ply)
@@ -347,44 +359,43 @@ if SERVER then
     -----------
 
     AddHook("DoPlayerDeath", "Faker_DoPlayerDeath", function(ply, attacker, dmg)
-        if ply:IsFaker() then
-            local weps = ply:GetWeapons()
-            for _, wep in pairs(weps) do
-                if wep.IsFakerFake then
-                    ply:StripWeapon(wep:GetClass())
-                end
+        if not ply:IsFaker() then return end
+
+        for _, wep in pairs(ply:GetWeapons()) do
+            if wep.IsFakerFake then
+                ply:StripWeapon(wep:GetClass())
             end
         end
     end)
 
     AddHook("PlayerDeath", "Faker_PlayerDeath", function(victim, infl, attacker)
-        if victim:IsFaker() then
-            JesterTeamKilledNotification(attacker, victim,
-            -- getkillstring
-                    function()
-                        return "The " .. ROLE_STRINGS[ROLE_FAKER] .. " has been killed!"
-                    end)
+        if not victim:IsFaker() then return end
 
-            local fakesbought = {}
-            for fake in StringGMatch(victim:GetNWString("FakerFakesBought", ""), "([^,]+)") do
-                TableInsert(fakesbought, fake:Trim())
-            end
-            local drops = MathMin(faker_drop_weapons_on_death:GetInt(), #fakesbought)
-            timer.Create("FakerWeaponDrop", 0.05, drops, function()
-                local ragdoll = victim.server_ragdoll or victim:GetRagdollEntity()
-                local pos = ragdoll:GetPos() + Vector(0, 0, 25)
+        JesterTeamKilledNotification(attacker, victim,
+        -- getkillstring
+                function()
+                    return "The " .. ROLE_STRINGS[ROLE_FAKER] .. " has been killed!"
+                end)
 
-                local idx = MathRandom(1, #fakesbought)
-                local wep = fakesbought[idx]
-                table.remove(fakesbought, idx)
-                local ent = CreateEntity(wep)
-                ent:SetPos(pos)
-                ent:Spawn()
-
-                local phys = ent:GetPhysicsObject()
-                if phys:IsValid() then phys:ApplyForceCenter(Vector(MathRand(-100, 100), MathRand(-100, 100), 300) * phys:GetMass()) end
-            end)
+        local fakesbought = {}
+        for fake in StringGMatch(victim:GetNWString("FakerFakesBought", ""), "([^,]+)") do
+            TableInsert(fakesbought, fake:Trim())
         end
+        local drops = MathMin(faker_drop_weapons_on_death:GetInt(), #fakesbought)
+        timer.Create("FakerWeaponDrop", 0.05, drops, function()
+            local ragdoll = victim.server_ragdoll or victim:GetRagdollEntity()
+            local pos = ragdoll:GetPos() + Vector(0, 0, 25)
+
+            local idx = MathRandom(1, #fakesbought)
+            local wep = fakesbought[idx]
+            table.remove(fakesbought, idx)
+            local ent = CreateEntity(wep)
+            ent:SetPos(pos)
+            ent:Spawn()
+
+            local phys = ent:GetPhysicsObject()
+            if phys:IsValid() then phys:ApplyForceCenter(Vector(MathRand(-100, 100), MathRand(-100, 100), 300) * phys:GetMass()) end
+        end)
     end)
 
     ----------------
@@ -422,6 +433,9 @@ if SERVER then
 end
 
 if CLIENT then
+
+    local client
+
     ----------------
     -- WIN CHECKS --
     ----------------
@@ -486,16 +500,41 @@ if CLIENT then
         end
     end)
 
+    ---------------------
+    -- WEAPON PURCHASE --
+    ---------------------
+
+    net.Receive("TTT_UpdateFakerWeaponKind", function()
+        if not client then
+            client = LocalPlayer()
+        end
+
+        local class = net.ReadString()
+        local kind = net.ReadUInt(16)
+
+        -- Delay this slightly so the client has a chance to realize it has the weapon
+        timer.Simple(0.25, function()
+            for _, wep in ipairs(client:GetWeapons()) do
+                local wep_class = WEPS.GetClass(wep)
+                if wep_class == class then
+                    wep.Kind = kind
+                end
+            end
+        end)
+    end)
+
     ---------
     -- HUD --
     ---------
 
     AddHook("HUDPaint", "Faker_HUDPaint", function()
-        local ply = LocalPlayer()
+        if not client then
+            client = LocalPlayer()
+        end
 
-        if not IsValid(ply) or ply:IsSpec() or GetRoundState() ~= ROUND_ACTIVE then return end
+        if not IsValid(client) or client:IsSpec() or GetRoundState() ~= ROUND_ACTIVE then return end
 
-        if ply:IsFaker() then
+        if client:IsFaker() then
             local x = ScrW() / 2.0
             local y = ScrH() / 2.0
 
@@ -506,7 +545,7 @@ if CLIENT then
 
             local los = GetGlobalBool("ttt_faker_line_of_sight_required", true)
             local range = GetGlobalFloat("ttt_faker_minimum_distance", 524.9)
-            local state = GetFakerState(ply)
+            local state = GetFakerState(client)
 
             if los and range > 0 then
                 local text = {"LOS", "RANGE"}

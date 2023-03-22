@@ -114,8 +114,6 @@ ROLE.selectionpredicate = function()
     return true
 end
 
-RegisterRole(ROLE)
-
 if SERVER then
     AddCSLuaFile()
 
@@ -341,7 +339,7 @@ if CLIENT then
     end)
 
     local function IsDetectoclownActive(ply)
-        return IsPlayer(ply) and ply:IsDetectoclown() and ply:GetNWBool("KillerDetectoclownActive")
+        return IsPlayer(ply) and ply:IsDetectoclown() and ply:GetNWBool("KillerDetectoclownActive", false)
     end
 
     local function IsDetectoclownVisible(ply)
@@ -374,7 +372,11 @@ if CLIENT then
         end
 
         if IsDetectoclownPromoted(ent) then
-            return true, ROLE_COLORS_RADAR[ROLE_DETECTIVE]
+            local role = ROLE_DEPUTY
+            if GetGlobalBool("ttt_deputy_use_detective_icon", false) then
+                role = ROLE_DETECTIVE
+            end
+            return true, ROLE_COLORS_RADAR[role]
         end
     end)
 
@@ -390,9 +392,22 @@ if CLIENT then
         end
 
         if IsDetectoclownPromoted(ent) then
-            return StringUpper(ROLE_STRINGS[ROLE_DETECTIVE]), ROLE_COLORS_RADAR[ROLE_DETECTIVE]
+            local role = ROLE_DEPUTY
+            if GetGlobalBool("ttt_deputy_use_detective_icon", false) then
+                role = ROLE_DETECTIVE
+            end
+            return StringUpper(ROLE_STRINGS[role]), ROLE_COLORS_RADAR[role]
         end
     end)
+
+    ROLE.istargetidoverridden = function(ply, target, showJester)
+        if GetRoundState() < ROUND_ACTIVE then return end
+
+        if (IsDetectoclownActive(ply) and target:ShouldActLikeJester()) or IsDetectoclownVisible(target) then
+            ------ icon, ring, text
+            return true, true, true
+        end
+    end
 
     ----------------
     -- SCOREBOARD --
@@ -404,8 +419,9 @@ if CLIENT then
         end
     end)
 
-    ROLE_IS_SCOREBOARD_INFO_OVERRIDDEN[ROLE_DETECTOCLOWN] = function(ply, target)
+    ROLE.isscoreboardinfooverridden = function(ply, target)
         if not IsDetectoclownVisible(target) then return end
+        ------ name,  role
         return false, true
     end
 
@@ -534,3 +550,5 @@ AddHook("Initialize", "Detectoclown_Promotion_Initialize", function()
     plymeta.IsDetectiveLike = plymeta.GetDetectiveLike
     plymeta.IsDetectiveLikePromotable = plymeta.GetDetectiveLikePromotable
 end)
+
+RegisterRole(ROLE)
