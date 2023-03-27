@@ -421,7 +421,7 @@ if SERVER then
         WIN_FAKER = GenerateNewWinID(ROLE_FAKER)
     end)
 
-    AddHook("TTTWinCheckComplete", "Shadow_TTTWinCheckComplete", function(win_type)
+    AddHook("TTTWinCheckComplete", "Faker_TTTWinCheckComplete", function(win_type)
         if win_type == WIN_NONE then return end
         local ply = player.GetLivingRole(ROLE_FAKER)
         if not IsPlayer(ply) then return end
