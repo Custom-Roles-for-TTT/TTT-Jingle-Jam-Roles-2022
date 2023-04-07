@@ -160,7 +160,7 @@ if SERVER then
     util.AddNetworkString("TTT_UpdateFakerWeaponKind")
     util.AddNetworkString("TTT_PlayFakerSound")
 
-    AddHook("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
+    AddHook("TTTSyncGlobals", "Faker_TTTSyncGlobals", function()
         SetGlobalInt("ttt_faker_required_fakes", faker_required_fakes:GetInt())
         SetGlobalInt("ttt_faker_credits_timer", faker_credits_timer:GetInt())
         SetGlobalBool("ttt_faker_line_of_sight_required", faker_line_of_sight_required:GetBool())
