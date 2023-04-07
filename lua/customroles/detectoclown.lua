@@ -360,7 +360,7 @@ if CLIENT then
         end
     end)
 
-    AddHook("TTTTargetIDPlayerRing", "Clown_TTTTargetIDPlayerRing", function(ent, cli, ring_visible)
+    AddHook("TTTTargetIDPlayerRing", "Detectoclown_TTTTargetIDPlayerRing", function(ent, cli, ring_visible)
         if GetRoundState() < ROUND_ACTIVE then return end
 
         if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() then
@@ -380,7 +380,7 @@ if CLIENT then
         end
     end)
 
-    AddHook("TTTTargetIDPlayerText", "Clown_TTTTargetIDPlayerText", function(ent, cli, text, col, secondary_text)
+    AddHook("TTTTargetIDPlayerText", "Detectoclown_TTTTargetIDPlayerText", function(ent, cli, text, col, secondary_text)
         if GetRoundState() < ROUND_ACTIVE then return end
 
         if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() then
@@ -413,7 +413,7 @@ if CLIENT then
     -- SCOREBOARD --
     ----------------
 
-    AddHook("TTTScoreboardPlayerRole", "Clown_TTTScoreboardPlayerRole", function(ply, client, color, roleFileName)
+    AddHook("TTTScoreboardPlayerRole", "Detectoclown_TTTScoreboardPlayerRole", function(ply, client, color, roleFileName)
         if IsDetectoclownVisible(ply) or (client == ply and client:IsDetectoclown()) then
             return ROLE_COLORS_SCOREBOARD[ROLE_DETECTOCLOWN], ROLE_STRINGS_SHORT[ROLE_DETECTOCLOWN]
         end
@@ -470,7 +470,7 @@ if CLIENT then
     -- EVENTS --
     ------------
 
-    AddHook("TTTEventFinishText", "Clown_TTTEventFinishText", function(e)
+    AddHook("TTTEventFinishText", "Detectoclown_TTTEventFinishText", function(e)
         if e.win == WIN_DETECTOCLOWN then
             return LANG.GetParamTranslation("ev_win_clown", { role = StringLower(ROLE_STRINGS[ROLE_DETECTOCLOWN]) })
         end
