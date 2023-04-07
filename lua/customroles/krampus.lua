@@ -11,6 +11,7 @@ local util = util
 local AddHook = hook.Add
 local GetAllPlayers = player.GetAll
 local MathMax = math.max
+local RemoveHook = hook.Remove
 local TableInsert = table.insert
 local TableShuffle = table.Shuffle
 
