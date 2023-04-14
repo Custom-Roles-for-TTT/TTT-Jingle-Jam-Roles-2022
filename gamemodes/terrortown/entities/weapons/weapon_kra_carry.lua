@@ -130,9 +130,9 @@ function SWEP:Reset()
         local newPos = owner:LocalToWorld(Vector(75, 0, 5))
 
         -- Prevent player from getting stuck in the world
-        local found
+        local found = false
         local attempts = 0
-        while not found and attempts < 10 do
+        while true and attempts < 10 do
             attempts = attempts + 1
             local tr = TraceLine({
                 start = newPos,
@@ -147,9 +147,8 @@ function SWEP:Reset()
         end
 
         -- Prevent player from getting stuck in other players
-        found = false
         attempts = 0
-        while not found and attempts < 10 do
+        while true and attempts < 10 do
             attempts = attempts + 1
             local foundEnts = EntsFindAlongRay(newPos, newPos)
             if #foundEnts > 1 then
