@@ -147,7 +147,6 @@ function SWEP:Reset()
         end
 
         -- Prevent player from getting stuck in other players
-        found = false
         attempts = 0
         while true and attempts < 10 do
             attempts = attempts + 1
