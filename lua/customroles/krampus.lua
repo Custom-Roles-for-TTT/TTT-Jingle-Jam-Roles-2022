@@ -431,7 +431,7 @@ if SERVER then
     end)
 
     ------------------
-    -- ANNOUNCEMENT -- 
+    -- ANNOUNCEMENT --
     ------------------
 
     -- Warn other players that there is a krampus
