@@ -222,48 +222,50 @@ if SERVER then
     ---------------------
 
     AddHook("TTTOrderedEquipment", "Faker_TTTOrderedEquipment", function(ply, id, is_item)
-        if ply:IsFaker() and not is_item then
-            local wep = ply:GetWeapon(id)
+        if not IsValid(ply) then return end
+        if not ply:IsFaker() then return end
+        if is_item then return end
 
-            if TableHasValue(ply.FakerFakesBought, id) then
-                ply:PrintMessage(HUD_PRINTTALK, "You have already used this weapon! Credit refunded.")
-                ply:PrintMessage(HUD_PRINTCENTER, "You have already used this weapon! Credit refunded.")
-                ply:AddCredits(1)
-                wep:Remove()
-            else
-                TableInsert(ply.FakerFakesBought, id)
+        local wep = ply:GetWeapon(id)
 
-                if wep.Primary then
-                    wep.Primary.Damage = 0
-                end
-                if wep.Secondary then
-                    wep.Secondary.Damage = 0
-                end
-                wep.AllowDropOrig = wep.AllowDrop
-                wep.AllowDrop = false
-                wep.FakerWeaponState = FAKER_WEAPON_FAKE
-                wep.NextFakerWarning = CurTime()
+        if TableHasValue(ply.FakerFakesBought, id) then
+            ply:PrintMessage(HUD_PRINTTALK, "You have already used this weapon! Credit refunded.")
+            ply:PrintMessage(HUD_PRINTCENTER, "You have already used this weapon! Credit refunded.")
+            ply:AddCredits(1)
+            wep:Remove()
+        else
+            TableInsert(ply.FakerFakesBought, id)
 
-                wep.OnDropOrig = wep.OnDrop
-                wep.OnDrop = function(w)
-                    w:OnDropOrig()
-                    if IsValid(w) then
-                        w:Remove()
-                    end
-                end
-
-                -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
-                if wep.Kind <= 8 then
-                    wep.Kind = WEAPON_ROLE + TableCount(ply.FakerFakesBought)
-
-                    net.Start("TTT_UpdateFakerWeaponKind")
-                    net.WriteString(id)
-                    net.WriteUInt(wep.Kind, 16)
-                    net.Send(ply)
-                end
-                -- Mark this as a role weapon so Randomats and things like that don't mess with it
-                wep.Category = WEAPON_CATEGORY_ROLE
+            if wep.Primary then
+                wep.Primary.Damage = 0
             end
+            if wep.Secondary then
+                wep.Secondary.Damage = 0
+            end
+            wep.AllowDropOrig = wep.AllowDrop
+            wep.AllowDrop = false
+            wep.FakerWeaponState = FAKER_WEAPON_FAKE
+            wep.NextFakerWarning = CurTime()
+
+            wep.OnDropOrig = wep.OnDrop
+            wep.OnDrop = function(w)
+                w:OnDropOrig()
+                if IsValid(w) then
+                    w:Remove()
+                end
+            end
+
+            -- Stig's slot removal mod uses SWEP.Kind values greater than 8 here so this just checks to make sure it doesn't conflict
+            if wep.Kind and wep.Kind <= 8 then
+                wep.Kind = WEAPON_ROLE + TableCount(ply.FakerFakesBought)
+
+                net.Start("TTT_UpdateFakerWeaponKind")
+                net.WriteString(id)
+                net.WriteUInt(wep.Kind, 16)
+                net.Send(ply)
+            end
+            -- Mark this as a role weapon so Randomats and things like that don't mess with it
+            wep.Category = WEAPON_CATEGORY_ROLE
         end
     end)
 
