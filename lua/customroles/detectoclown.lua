@@ -187,6 +187,12 @@ if SERVER then
                     ply:SetRole(role)
                     SendFullStateUpdate()
 
+                    -- Update the player's health
+                    SetRoleMaxHealth(ply)
+                    if ply:Health() > ply:GetMaxHealth() then
+                        ply:SetHealth(ply:GetMaxHealth())
+                    end
+
                     ply:StripRoleWeapons()
                     if not ply:HasWeapon("weapon_ttt_unarmed") then
                         ply:Give("weapon_ttt_unarmed")
@@ -529,7 +535,7 @@ if CLIENT then
 
             -- Traitor Traps
             if GetGlobalBool("ttt_detectoclown_use_traps_when_active", false) then
-                html = html .. "<span style='display: block; margin-top: 10px;'><span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>Traitor traps</span> also become available when <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>the " .. ROLE_STRINGS[ROLE_CLOWN] .." is activated</span>.</span>"
+                html = html .. "<span style='display: block; margin-top: 10px;'><span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>Traitor traps</span> also become available when <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>the " .. ROLE_STRINGS[ROLE_CLOWN] .. " is activated</span>.</span>"
             end
 
             return html
