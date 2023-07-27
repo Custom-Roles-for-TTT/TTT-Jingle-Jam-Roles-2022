@@ -34,6 +34,7 @@ aiming to kill everyone. Be the last player standing to win.]]
 ROLE.team = ROLE_TEAM_JESTER
 
 ROLE.shop = {}
+ROLE.shoulddelayshop = true
 
 ROLE.isactive = function(ply)
     return ply:GetNWBool("HasPromotion", false)
