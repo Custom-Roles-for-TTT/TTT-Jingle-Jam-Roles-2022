@@ -24,6 +24,8 @@ ttt_detectoclown_silly_names            1   // Whether the detectoclown's name s
 ttt_detectoclown_blocks_deputy          0   // Whether the detectoclown should prevent the deputy from spawning in a round and vice versa
 ttt_detectoclown_blocks_impersonator    0   // Whether the detectoclown should prevent the impersonator from spawning in a round and vice versa
 ttt_detectoclown_activation_credits     0   // The number of credits to give the detectoclown when they are promoted
+ttt_detectoclown_shop_active_only       1   // Whether the detectoclown's shop should be available only after they activate
+ttt_detectoclown_shop_delay             0   // Whether the detectoclown's purchased shop items should be held until they activate
 ```
 
 ## Faker
