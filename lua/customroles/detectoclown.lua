@@ -114,13 +114,14 @@ ROLE.selectionpredicate = function()
     return true
 end
 
+local detectoclown_use_traps_when_active = CreateConVar("ttt_detectoclown_use_traps_when_active", "0", FCVAR_REPLICATED)
+local detectoclown_show_target_icon = CreateConVar("ttt_detectoclown_show_target_icon", "0", FCVAR_REPLICATED)
+local detectoclown_hide_when_active = CreateConVar("ttt_detectoclown_hide_when_active", "0", FCVAR_REPLICATED)
+
 if SERVER then
     AddCSLuaFile()
 
     local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_override_marshal_badge", "1")
-    local detectoclown_use_traps_when_active = CreateConVar("ttt_detectoclown_use_traps_when_active", "0")
-    local detectoclown_show_target_icon = CreateConVar("ttt_detectoclown_show_target_icon", "0")
-    local detectoclown_hide_when_active = CreateConVar("ttt_detectoclown_hide_when_active", "0")
     local detectoclown_heal_on_activate = CreateConVar("ttt_detectoclown_heal_on_activate", "0")
     local detectoclown_heal_bonus = CreateConVar("ttt_detectoclown_heal_bonus", "0", FCVAR_NONE, "The amount of bonus health to give the clown if they are healed when they are activated", 0, 100)
     local detectoclown_damage_bonus = CreateConVar("ttt_detectoclown_damage_bonus", "0", FCVAR_NONE, "Damage bonus that the clown has after being activated (e.g. 0.5 = 50% more damage)", 0, 1)
@@ -130,12 +131,6 @@ if SERVER then
     CreateConVar("ttt_detectoclown_activation_credits", "0", FCVAR_NONE, "The number of credits to give the detectoclown when they are promoted", 0, 10)
 
     util.AddNetworkString("TTT_DetectoclownActivate")
-
-    AddHook("TTTSyncGlobals", "Detectoclown_TTTSyncGlobals", function()
-        SetGlobalBool("ttt_detectoclown_use_traps_when_active", detectoclown_use_traps_when_active:GetBool())
-        SetGlobalBool("ttt_detectoclown_show_target_icon", detectoclown_show_target_icon:GetBool())
-        SetGlobalBool("ttt_detectoclown_hide_when_active", detectoclown_hide_when_active:GetBool())
-    end)
 
     ---------------------
     -- SILLY ROLE NAME --
@@ -273,7 +268,7 @@ if SERVER then
             net.WriteEntity(detectoclown)
             net.Broadcast()
 
-            TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = GetGlobalBool("ttt_detectoclown_use_traps_when_active", false)
+            TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = detectoclown_use_traps_when_active:GetBool()
 
             return WIN_NONE
         end
@@ -334,12 +329,29 @@ if SERVER then
 end
 
 if CLIENT then
+
+    local function GetReplicatedValue(onreplicated, onglobal)
+        if CRVersion("1.9.3") then
+            return onreplicated()
+        end
+        return onglobal()
+    end
+
+    local function UseDetectiveIcon()
+        return GetReplicatedValue(function()
+                return GetConVar("ttt_deputy_use_detective_icon"):GetBool()
+            end,
+            function()
+                return GetGlobalBool("ttt_deputy_use_detective_icon")
+            end)
+    end
+
     ---------------
     -- TARGET ID --
     ---------------
 
     AddHook("TTTTargetIDPlayerKillIcon", "Detectoclown_TTTTargetIDPlayerKillIcon", function(ply, cli, showKillIcon, showJester)
-        if cli:IsDetectoclown() and cli:GetNWBool("KillerDetectoclownActive") and GetGlobalBool("ttt_detectoclown_show_target_icon", false) and not showJester then
+        if cli:IsDetectoclown() and cli:GetNWBool("KillerDetectoclownActive") and detectoclown_show_target_icon:GetBool() and not showJester then
             return true
         end
     end)
@@ -349,7 +361,7 @@ if CLIENT then
     end
 
     local function IsDetectoclownVisible(ply)
-        return IsDetectoclownActive(ply) and not GetGlobalBool("ttt_detectoclown_hide_when_active", false)
+        return IsDetectoclownActive(ply) and not detectoclown_hide_when_active:GetBool()
     end
 
     local function IsDetectoclownPromoted(ply)
@@ -379,7 +391,7 @@ if CLIENT then
 
         if IsDetectoclownPromoted(ent) then
             local role = ROLE_DEPUTY
-            if GetGlobalBool("ttt_deputy_use_detective_icon", false) then
+            if UseDetectiveIcon() then
                 role = ROLE_DETECTIVE
             end
             return true, ROLE_COLORS_RADAR[role]
@@ -399,7 +411,7 @@ if CLIENT then
 
         if IsDetectoclownPromoted(ent) then
             local role = ROLE_DEPUTY
-            if GetGlobalBool("ttt_deputy_use_detective_icon", false) then
+            if UseDetectiveIcon() then
                 role = ROLE_DETECTIVE
             end
             return StringUpper(ROLE_STRINGS[role]), ROLE_COLORS_RADAR[role]
@@ -439,7 +451,7 @@ if CLIENT then
         local ent = net.ReadEntity()
         if not IsPlayer(ent) then return end
 
-        TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = GetGlobalBool("ttt_detectoclown_use_traps_when_active", false)
+        TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = detectoclown_use_traps_when_active:GetBool()
 
         ent:Celebrate("clown.wav", true)
 
@@ -507,7 +519,7 @@ if CLIENT then
 
             -- Icon
             html = html .. "<span style='display: block; margin-top: 10px;'>Once promoted, <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>all players</span> will see the "
-            if GetGlobalBool("ttt_deputy_use_detective_icon", true) then
+            if UseDetectiveIcon() then
                 html = html .. ROLE_STRINGS[ROLE_DETECTIVE]
             else
                 html = html .. ROLE_STRINGS[ROLE_DEPUTY]
@@ -515,12 +527,12 @@ if CLIENT then
             html = html .. " icon over the " .. ROLE_STRINGS[ROLE_DETECTOCLOWN] .. "'s head.</span>"
 
             -- Target ID
-            if GetGlobalBool("ttt_detectoclown_show_target_icon", false) then
+            if detectoclown_show_target_icon:GetBool() then
                 html = html .. "<span style='display: block; margin-top: 10px;'>Their targets can be identified by the <span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>KILL</span> icon floating over their heads.</span>"
             end
 
             -- Hide When Active
-            if GetGlobalBool("ttt_detectoclown_hide_when_active", false) then
+            if detectoclown_hide_when_active:GetBool() then
                 html = html .. "<span style='display: block; margin-top: 10px;'>When activated they are also <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>hidden</span> from players who could normally <span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>see them through walls</span>.</span>"
             end
 
@@ -534,7 +546,7 @@ if CLIENT then
             html = html .. ".</span>"
 
             -- Traitor Traps
-            if GetGlobalBool("ttt_detectoclown_use_traps_when_active", false) then
+            if detectoclown_use_traps_when_active:GetBool() then
                 html = html .. "<span style='display: block; margin-top: 10px;'><span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>Traitor traps</span> also become available when <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>the " .. ROLE_STRINGS[ROLE_CLOWN] .. " is activated</span>.</span>"
             end
 

@@ -114,6 +114,14 @@ KRAMPUS_NAUGHTY_DAMAGE = 1
 KRAMPUS_NAUGHTY_KILL = 2
 KRAMPUS_NAUGHTY_OTHER = 3
 
+local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_REPLICATED, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
+local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
+local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
+local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
+local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1", FCVAR_REPLICATED)
+local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1", FCVAR_REPLICATED)
+local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1", FCVAR_REPLICATED)
+
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
     if ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
@@ -135,7 +143,7 @@ local function ValidTarget(ply, role)
         return true
     end
 
-    if GetGlobalBool("ttt_krampus_naughty_traitors", true) and TRAITOR_ROLES[role] then
+    if krampus_naughty_traitors:GetBool() and TRAITOR_ROLES[role] then
         return true
     end
 
@@ -145,28 +153,11 @@ end
 if SERVER then
     AddCSLuaFile()
 
-    local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0")
-    local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0")
-    local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_NONE, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
     local krampus_win_delay_time = CreateConVar("ttt_krampus_win_delay_time", "60", FCVAR_NONE, "The number of seconds to delay a team's win if there are naughty players left", 0, 600)
     local krampus_next_target_delay = CreateConVar("ttt_krampus_next_target_delay", "5", FCVAR_NONE, "The delay (in seconds) before an krampus is assigned their next target", 0, 30)
-    local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0")
     local krampus_warn = CreateConVar("ttt_krampus_warn", "0")
     local krampus_warn_all = CreateConVar("ttt_krampus_warn_all", "0")
     local krampus_naughty_notify = CreateConVar("ttt_krampus_naughty_notify", "0")
-    local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1")
-    local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1")
-    local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1")
-
-    hook.Add("TTTSyncGlobals", "Krampus_TTTSyncGlobals", function()
-        SetGlobalFloat("ttt_krampus_target_damage_bonus", krampus_target_damage_bonus:GetFloat())
-        SetGlobalBool("ttt_krampus_show_target_icon", krampus_show_target_icon:GetBool())
-        SetGlobalBool("ttt_krampus_target_vision_enable", krampus_target_vision_enable:GetBool())
-        SetGlobalBool("ttt_krampus_is_monster", krampus_is_monster:GetBool())
-        SetGlobalBool("ttt_krampus_naughty_traitors", krampus_naughty_traitors:GetBool())
-        SetGlobalBool("ttt_krampus_naughty_innocent_damage", krampus_naughty_innocent_damage:GetBool())
-        SetGlobalBool("ttt_krampus_naughty_jester_damage", krampus_naughty_jester_damage:GetBool())
-    end)
 
     -----------
     -- KARMA --
@@ -578,7 +569,7 @@ if CLIENT then
 
     -- Show "KILL" icon over the target's head
     AddHook("TTTTargetIDPlayerKillIcon", "Krampus_TTTTargetIDPlayerKillIcon", function(ply, cli, showKillIcon, showJester)
-        if cli:IsKrampus() and GetGlobalBool("ttt_krampus_show_target_icon", false) and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester then
+        if cli:IsKrampus() and krampus_show_target_icon:GetBool() and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester then
             return true
         end
     end)
@@ -587,7 +578,7 @@ if CLIENT then
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
 
-        local show = (target:SteamID64() == ply:GetNWString("KrampusTarget", "")) and not showJester and GetGlobalBool("ttt_krampus_show_target_icon", false)
+        local show = (target:SteamID64() == ply:GetNWString("KrampusTarget", "")) and not showJester and krampus_show_target_icon:GetBool()
         ------ icon,  ring, text
         return show, false, false
     end
@@ -649,7 +640,7 @@ if CLIENT then
 
     AddHook("TTTUpdateRoleState", "Krampus_Highlight_TTTUpdateRoleState", function()
         client = LocalPlayer()
-        krampus_target_vision = GetGlobalBool("ttt_krampus_target_vision_enable", false)
+        krampus_target_vision = krampus_target_vision_enable:GetBool()
 
         -- Disable highlights on role change
         if vision_enabled then
@@ -804,7 +795,7 @@ if CLIENT then
         local roleTeamName, roleColor = GetRoleTeamInfo(roleTeam)
         local html = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. roleTeamName .. "</span> role whose goal is to punish the naughty players."
 
-        if GetGlobalFloat("ttt_krampus_target_damage_bonus", 0.1) > 0 then
+        if krampus_target_damage_bonus:GetFloat() > 0 then
             html = html .. "<span style='display: block; margin-top: 10px;'>The more naughty players the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " kills, the more damage the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " does.</span>"
         end
 
@@ -823,17 +814,17 @@ if CLIENT then
             html = html .. "<li>" .. T("monsters") .. "</li>"
         end
 
-        if GetGlobalBool("ttt_krampus_naughty_traitors", true) then
+        if krampus_naughty_traitors:GetBool() then
             html = html .. "<li>" .. T("traitors") .. "</li>"
         end
 
         html = html .. "<li>Anyone who "
-        if GetGlobalBool("ttt_krampus_naughty_innocent_damage", true) then
+        if krampus_naughty_innocent_damage:GetBool() then
             html = html .. " damages or "
         end
         html = html .. "kills " .. T("innocents") .. "</li>"
 
-        if GetGlobalBool("ttt_krampus_naughty_jester_damage", true) then
+        if krampus_naughty_jester_damage:GetBool() then
             html = html .. "<li>Anyone who damages " .. T("jesters") .. "</li>"
         end
 
@@ -848,9 +839,9 @@ end
 -------------------
 
 AddHook("TTTUpdateRoleState", "Krampus_Team_TTTUpdateRoleState", function()
-    local krampus_is_monster = GetGlobalBool("ttt_krampus_is_monster", false)
-    MONSTER_ROLES[ROLE_KRAMPUS] = krampus_is_monster
-    INDEPENDENT_ROLES[ROLE_KRAMPUS] = not krampus_is_monster
+    local is_monster = krampus_is_monster:GetBool()
+    MONSTER_ROLES[ROLE_KRAMPUS] = is_monster
+    INDEPENDENT_ROLES[ROLE_KRAMPUS] = not is_monster
 end)
 
 RegisterRole(ROLE)

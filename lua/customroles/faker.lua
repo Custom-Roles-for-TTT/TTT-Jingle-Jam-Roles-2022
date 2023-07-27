@@ -114,9 +114,15 @@ FAKER_WEAPON_NONE = 0
 FAKER_WEAPON_FAKE = 1
 FAKER_WEAPON_USED = 2
 
+local faker_required_fakes = CreateConVar("ttt_faker_required_fakes", "3", FCVAR_REPLICATED, "The required number of fakes weapons that need to be used for the faker to win the round", 0, 10)
+local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15", FCVAR_REPLICATED, "The amount of time (in seconds) after using a fake weapon before the faker is given a credit", 0, 60)
+local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1", FCVAR_REPLICATED)
+local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10", FCVAR_REPLICATED, "The minimum distance (in metres) the faker must be from another player for their fake weapon use to count", 0, 30)
+local faker_drop_weapons_on_death = CreateConVar("ttt_faker_drop_weapons_on_death", "3", FCVAR_REPLICATED, "The maximum number of weapons the faker should drop when they die", 0, 10)
+
 local function GetFakerState(ply)
-    local los = GetGlobalBool("ttt_faker_line_of_sight_required", true)
-    local range = GetGlobalFloat("ttt_faker_minimum_distance", 524.9)
+    local los = faker_line_of_sight_required:GetBool()
+    local range = faker_minimum_distance:GetFloat() * UNITS_PER_METER
     local losply = ply:GetNWString("FakerPlayerInLOS", "")
     local rangeply = ply:GetNWString("FakerPlayerInRange", "")
 
@@ -146,12 +152,7 @@ end
 if SERVER then
     AddCSLuaFile()
 
-    local faker_required_fakes = CreateConVar("ttt_faker_required_fakes", "3", FCVAR_NONE, "The required number of fakes weapons that need to be used for the faker to win the round", 0, 10)
     local faker_excluded_weapons = CreateConVar("ttt_faker_excluded_weapons", "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickennade,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber")
-    local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15", FCVAR_NONE, "The amount of time (in seconds) after using a fake weapon before the faker is given a credit", 0, 60)
-    local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1")
-    local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10", FCVAR_NONE, "The minimum distance (in metres) the faker must be from another player for their fake weapon use to count", 0, 30)
-    local faker_drop_weapons_on_death = CreateConVar("ttt_faker_drop_weapons_on_death", "3", FCVAR_NONE, "The maximum number of weapons the faker should drop when they die", 0, 10)
     CreateConVar("ttt_faker_notify_mode", "4", FCVAR_NONE, "The logic to use when notifying players that the faker is killed", 0, 4)
     CreateConVar("ttt_faker_notify_sound", "1")
     CreateConVar("ttt_faker_notify_confetti", "1")
@@ -159,14 +160,6 @@ if SERVER then
     util.AddNetworkString("TTT_UpdateFakerWins")
     util.AddNetworkString("TTT_UpdateFakerWeaponKind")
     util.AddNetworkString("TTT_PlayFakerSound")
-
-    AddHook("TTTSyncGlobals", "Faker_TTTSyncGlobals", function()
-        SetGlobalInt("ttt_faker_required_fakes", faker_required_fakes:GetInt())
-        SetGlobalInt("ttt_faker_credits_timer", faker_credits_timer:GetInt())
-        SetGlobalBool("ttt_faker_line_of_sight_required", faker_line_of_sight_required:GetBool())
-        SetGlobalFloat("ttt_faker_minimum_distance", faker_minimum_distance:GetFloat() * 52.49)
-        SetGlobalInt("ttt_faker_drop_weapons_on_death", faker_drop_weapons_on_death:GetInt())
-    end)
 
     ---------------
     -- ROLE SHOP --
@@ -560,8 +553,8 @@ if CLIENT then
             local h = 20
             local m = 10
 
-            local los = GetGlobalBool("ttt_faker_line_of_sight_required", true)
-            local range = GetGlobalFloat("ttt_faker_minimum_distance", 524.9)
+            local los = faker_line_of_sight_required:GetBool()
+            local range = faker_minimum_distance:GetFloat() * UNITS_PER_METER
             local state = GetFakerState(client)
 
             if los and range > 0 then
@@ -628,11 +621,11 @@ if CLIENT then
         if role == ROLE_FAKER then
             local roleColor = ROLE_COLORS[ROLE_FAKER]
 
-            local required_fakes = GetGlobalInt("ttt_faker_required_fakes", 3)
-            local credits_timer = GetGlobalInt("ttt_faker_credits_timer", 15)
-            local los_required = GetGlobalBool("ttt_faker_line_of_sight_required", true)
-            local range_required = GetGlobalFloat("ttt_faker_minimum_distance", 524.9) > 0
-            local drop_weapons_on_death = GetGlobalInt("ttt_faker_drop_weapons_on_death", 3)
+            local required_fakes = faker_required_fakes:GetInt()
+            local credits_timer = faker_credits_timer:GetInt()
+            local los_required = faker_line_of_sight_required:GetBool()
+            local range_required = faker_minimum_distance:GetFloat() > 0
+            local drop_weapons_on_death = faker_drop_weapons_on_death:GetInt()
 
             local html = "The " .. ROLE_STRINGS[ROLE_FAKER] .. " is a <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>jester</span> role that can buy fake traitor weapons that do no damage. If the faker uses " .. required_fakes .. " fake weapons and survives until the end of the round they win."
 
