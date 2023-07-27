@@ -118,11 +118,11 @@ end
 local detectoclown_use_traps_when_active = CreateConVar("ttt_detectoclown_use_traps_when_active", "0", FCVAR_REPLICATED)
 local detectoclown_show_target_icon = CreateConVar("ttt_detectoclown_show_target_icon", "0", FCVAR_REPLICATED)
 local detectoclown_hide_when_active = CreateConVar("ttt_detectoclown_hide_when_active", "0", FCVAR_REPLICATED)
+local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_override_marshal_badge", "1", FCVAR_REPLICATED)
 
 if SERVER then
     AddCSLuaFile()
 
-    local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_override_marshal_badge", "1")
     local detectoclown_heal_on_activate = CreateConVar("ttt_detectoclown_heal_on_activate", "0")
     local detectoclown_heal_bonus = CreateConVar("ttt_detectoclown_heal_bonus", "0", FCVAR_NONE, "The amount of bonus health to give the clown if they are healed when they are activated", 0, 100)
     local detectoclown_damage_bonus = CreateConVar("ttt_detectoclown_damage_bonus", "0", FCVAR_NONE, "Damage bonus that the clown has after being activated (e.g. 0.5 = 50% more damage)", 0, 1)
@@ -504,6 +504,13 @@ if CLIENT then
     --------------
     -- TUTORIAL --
     --------------
+
+    hook.Add("TTTTutorialRoleEnabled", "Detectoclown_TTTTutorialRoleEnabled", function(role)
+        if role == ROLE_DETECTOCLOWN then
+            -- Show the detectoclown screen if the marshal could spawn them
+            return GetConVar("ttt_marshal_enabled"):GetBool() and detectoclown_override_marshal_badge:GetBool()
+        end
+    end)
 
     AddHook("TTTTutorialRoleText", "Detectoclown_TTTTutorialRoleText", function(role, titleLabel)
         if role == ROLE_DETECTOCLOWN then
