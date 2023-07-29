@@ -120,6 +120,13 @@ local detectoclown_show_target_icon = CreateConVar("ttt_detectoclown_show_target
 local detectoclown_hide_when_active = CreateConVar("ttt_detectoclown_hide_when_active", "0", FCVAR_REPLICATED)
 local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_override_marshal_badge", "1", FCVAR_REPLICATED)
 
+local function GetReplicatedValue(onreplicated, onglobal)
+    if CRVersion("1.9.3") then
+        return onreplicated()
+    end
+    return onglobal()
+end
+
 if SERVER then
     AddCSLuaFile()
 
@@ -149,7 +156,11 @@ if SERVER then
             TableShuffle(names)
             local namePick = MathRandom(1, #names)
             local name = names[namePick]
-            SetGlobalString("ttt_detectoclown_name", name)
+            GetReplicatedValue(function()
+                    GetConVar("ttt_detectoclown_name"):SetString(name)
+                end, function()
+                    SetGlobalString("ttt_detectoclown_name", name)
+                end)
             UpdateRoleStrings()
             timer.Simple(0.5, function()
                 net.Start("TTT_UpdateRoleNames")
@@ -330,13 +341,6 @@ if SERVER then
 end
 
 if CLIENT then
-
-    local function GetReplicatedValue(onreplicated, onglobal)
-        if CRVersion("1.9.3") then
-            return onreplicated()
-        end
-        return onglobal()
-    end
 
     local function UseDetectiveIcon()
         return GetReplicatedValue(function()
@@ -546,9 +550,19 @@ if CLIENT then
 
             -- Shop
             html = html .. "<span style='display: block; margin-top: 10px;'>The " .. ROLE_STRINGS[ROLE_DETECTOCLOWN] .. " has access to a <span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>weapon shop</span>"
-            if GetGlobalBool("ttt_detectoclown_shop_active_only", true) then
+            local shop_active_only = GetReplicatedValue(function()
+                    return GetConVar("ttt_detectoclown_shop_active_only"):GetBool()
+                end, function()
+                    return GetGlobalBool("ttt_detectoclown_shop_active_only", true)
+                end)
+            local shop_delay = GetReplicatedValue(function()
+                    return GetConVar("ttt_detectoclown_shop_delay"):GetBool()
+                end, function()
+                    return GetGlobalBool("ttt_detectoclown_shop_delay", true)
+                end)
+            if shop_active_only then
                 html = html .. ", but only <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>after they are promoted</span>"
-            elseif GetGlobalBool("ttt_detectoclown_shop_delay", false) then
+            elseif shop_delay then
                 html = html .. ", but they are only given their purchased weapons <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>after they are promoted</span>"
             end
             html = html .. ".</span>"
