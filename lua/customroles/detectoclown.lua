@@ -375,7 +375,10 @@ if CLIENT then
 
     AddHook("TTTTargetIDPlayerRoleIcon", "Detectoclown_TTTTargetIDPlayerRoleIcon", function(ply, cli, role, noz, color_role, hideBeggar, showJester, hideBodysnatcher)
         if IsDetectoclownActive(cli) and ply:ShouldActLikeJester() then
-            return ROLE_JESTER, false, ROLE_JESTER
+            local icon_overridden, _, _ = ply:IsTargetIDOverridden(cli)
+            if icon_overridden then return end
+
+            return ROLE_NONE, false, ROLE_JESTER
         end
 
         if IsDetectoclownVisible(ply) then
@@ -387,6 +390,9 @@ if CLIENT then
         if GetRoundState() < ROUND_ACTIVE then return end
 
         if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() then
+            local _, ring_overridden, _ = ent:IsTargetIDOverridden(cli)
+            if ring_overridden then return end
+
             return true, ROLE_COLORS_RADAR[ROLE_JESTER]
         end
 
@@ -407,7 +413,11 @@ if CLIENT then
         if GetRoundState() < ROUND_ACTIVE then return end
 
         if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() then
-            return StringUpper(ROLE_STRINGS[ROLE_JESTER]), ROLE_COLORS_RADAR[ROLE_JESTER]
+            local _, _, text_overridden = ent:IsTargetIDOverridden(cli)
+            if text_overridden then return end
+
+            local role_string = LANG.GetParamTranslation("target_unknown_team", { targettype = LANG.GetTranslation("jester")})
+            return StringUpper(role_string), ROLE_COLORS_RADAR[ROLE_JESTER]
         end
 
         if IsDetectoclownVisible(ent) then
@@ -423,29 +433,57 @@ if CLIENT then
         end
     end)
 
-    ROLE.istargetidoverridden = function(ply, target, showJester)
-        if GetRoundState() < ROUND_ACTIVE then return end
+    ROLE.istargetidoverridden = function(ply, target)
+        if not IsPlayer(target) then return end
 
-        if (IsDetectoclownActive(ply) and target:ShouldActLikeJester()) or IsDetectoclownVisible(target) then
-            ------ icon, ring, text
-            return true, true, true
+        local icon_overridden = false
+        local ring_overridden = false
+        local text_overridden = false
+        local target_jester = IsDetectoclownActive(ply) and target:ShouldActLikeJester()
+        -- We only care about whether these are overridden if the target is a tester
+        if target_jester then
+            icon_overridden, ring_overridden, text_overridden = target:IsTargetIDOverridden(ply)
         end
+        local visible = IsDetectoclownVisible(target)
+
+        ------ icon
+        return (target_jester and not icon_overridden) or visible,
+        ------- ring
+                (target_jester and not ring_overridden) or visible,
+        ------- text
+                (target_jester and not text_overridden) or visible
     end
 
     ----------------
     -- SCOREBOARD --
     ----------------
 
-    AddHook("TTTScoreboardPlayerRole", "Detectoclown_TTTScoreboardPlayerRole", function(ply, client, color, roleFileName)
-        if IsDetectoclownVisible(ply) or (client == ply and client:IsDetectoclown()) then
+    AddHook("TTTScoreboardPlayerRole", "Detectoclown_TTTScoreboardPlayerRole", function(ply, cli, color, roleFileName)
+        -- If the local client is an activated detectoclown and the target is a jester, show the jester icon
+        if IsDetectoclownActive(cli) and ply:ShouldActLikeJester() then
+            local _, role_overridden = ply:IsScoreboardInfoOverridden(cli)
+            if role_overridden then return end
+
+            return ROLE_COLORS_SCOREBOARD[ROLE_JESTER], ROLE_STRINGS_SHORT[ROLE_NONE]
+        end
+        if IsDetectoclownVisible(ply) or (cli == ply and cli:IsDetectoclown()) then
             return ROLE_COLORS_SCOREBOARD[ROLE_DETECTOCLOWN], ROLE_STRINGS_SHORT[ROLE_DETECTOCLOWN]
         end
     end)
 
     ROLE.isscoreboardinfooverridden = function(ply, target)
-        if not IsDetectoclownVisible(target) then return end
+        if not IsPlayer(target) then return end
+
+        local role_overridden = false
+        local target_jester = IsDetectoclownActive(ply) and target:ShouldActLikeJester()
+        -- We only care about whether these are overridden if the target is a tester
+        if target_jester then
+            _, role_overridden = target:IsScoreboardInfoOverridden(ply)
+        end
+        local visible = IsDetectoclownVisible(target)
+
         ------ name,  role
-        return false, true
+        return false, (target_jester and not role_overridden) or visible
     end
 
     -------------
