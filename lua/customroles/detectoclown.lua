@@ -547,7 +547,7 @@ if CLIENT then
     -- TUTORIAL --
     --------------
 
-    hook.Add("TTTTutorialRoleEnabled", "Detectoclown_TTTTutorialRoleEnabled", function(role)
+    hook.Add("TTTTutorialRoleEnabled", "Detectoclown_TTTTutorialRoleEnabled", function(role) -- TODO: Remove after 2.0.0
         if role == ROLE_DETECTOCLOWN then
             -- Show the detectoclown screen if the marshal could spawn them
             return GetConVar("ttt_marshal_enabled"):GetBool() and detectoclown_override_marshal_badge:GetBool()
@@ -614,6 +614,12 @@ if CLIENT then
         end
     end)
 end
+
+hook.Add("TTTRoleSpawnsArtificially", "Detectoclown_TTTRoleSpawnsArtificially", function(role)
+    if role == ROLE_DETECTOCLOWN and GetConVar("ttt_marshal_enabled"):GetBool() and detectoclown_override_marshal_badge:GetBool() then
+        return true
+    end
+end)
 
 ---------------
 -- PROMOTION --
