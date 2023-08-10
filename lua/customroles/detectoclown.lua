@@ -151,23 +151,23 @@ if SERVER then
         "Clue-ba"
     }
 
-    if detectoclown_silly_names:GetBool() then
-        AddHook("TTTPrepareRound", "Detectoclown_Name_PrepareRound", function()
-            TableShuffle(names)
-            local namePick = MathRandom(1, #names)
-            local name = names[namePick]
-            GetReplicatedValue(function()
-                    GetConVar("ttt_detectoclown_name"):SetString(name)
-                end, function()
-                    SetGlobalString("ttt_detectoclown_name", name)
-                end)
-            UpdateRoleStrings()
-            timer.Simple(0.5, function()
-                net.Start("TTT_UpdateRoleNames")
-                net.Broadcast()
+    AddHook("TTTPrepareRound", "Detectoclown_Name_PrepareRound", function()
+        if not detectoclown_silly_names:GetBool() then return end
+
+        TableShuffle(names)
+        local namePick = MathRandom(1, #names)
+        local name = names[namePick]
+        GetReplicatedValue(function()
+                GetConVar("ttt_detectoclown_name"):SetString(name)
+            end, function()
+                SetGlobalString("ttt_detectoclown_name", name)
             end)
+        UpdateRoleStrings()
+        timer.Simple(0.5, function()
+            net.Start("TTT_UpdateRoleNames")
+            net.Broadcast()
         end)
-    end
+    end)
 
     ----------------------------
     -- MARSHAL BADGE OVERRIDE --
