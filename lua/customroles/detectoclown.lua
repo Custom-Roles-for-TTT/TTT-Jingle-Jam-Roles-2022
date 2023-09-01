@@ -265,6 +265,10 @@ if SERVER then
             detectoclown:SetNWBool("KillerDetectoclownActive", true)
             detectoclown:PrintMessage(HUD_PRINTTALK, "KILL THEM ALL!")
             detectoclown:PrintMessage(HUD_PRINTCENTER, "KILL THEM ALL!")
+            local state = detectoclown:GetNWInt("TTTInformantScanStage", INFORMANT_UNSCANNED)
+            if state ~= INFORMANT_UNSCANNED and state < INFORMANT_SCANNED_ROLE then
+                detectoclown:SetNWInt("TTTInformantScanStage", INFORMANT_SCANNED_ROLE)
+            end
             if detectoclown_heal_on_activate:GetBool() then
                 local heal_bonus = detectoclown_heal_bonus:GetInt()
                 local health = detectoclown:GetMaxHealth() + heal_bonus
