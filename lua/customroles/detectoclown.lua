@@ -228,7 +228,7 @@ if SERVER then
 
                         Deputize(self, ply)
 
-                        owner:ConCommand("lastinv")
+                        self:GetOwner():ConCommand("lastinv")
                         self:Remove()
                         self:Reset()
                     end
