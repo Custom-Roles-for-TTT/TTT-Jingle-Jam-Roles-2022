@@ -35,6 +35,7 @@ ROLE.team = ROLE_TEAM_JESTER
 
 ROLE.shop = {}
 ROLE.shoulddelayshop = true
+ROLE.isdetectivelike = true
 
 ROLE.isactive = function(ply)
     return ply:GetNWBool("HasPromotion", false)
@@ -175,15 +176,7 @@ if SERVER then
     if detectoclown_override_marshal_badge:GetBool() then
         AddHook("PreRegisterSWEP", "Detectoclown_PreRegisterSWEP", function(SWEP, class)
             if class == "weapon_mhl_badge" then
-                function SWEP:Deputize()
-                    if not IsFirstTimePredicted() then return end
-
-                    local ply = self.Target
-                    if not IsPlayer(ply) or not ply:Alive() or ply:IsSpec() then
-                        self:Error("INVALID TARGET")
-                        return
-                    end
-
+                local function Deputize(this, ply)
                     local role = ROLE_DETECTOCLOWN
                     if ply:IsTraitorTeam() then
                         role = ROLE_IMPERSONATOR
@@ -211,18 +204,38 @@ if SERVER then
                         ply:Give("weapon_zm_improvised")
                     end
 
-                    local owner = self:GetOwner()
-                    hook.Call("TTTPlayerRoleChangedByItem", nil, owner, ply, self)
+                    local owner = this:GetOwner()
+                    hook.Call("TTTPlayerRoleChangedByItem", nil, owner, ply, this)
 
                     net.Start("TTT_Deputized")
                     net.WriteString(owner:Nick())
                     net.WriteString(ply:Nick())
                     net.WriteString(ply:SteamID64())
                     net.Broadcast()
+                end
 
-                    owner:ConCommand("lastinv")
-                    self:Remove()
-                    self:Reset()
+                -- Handle the old way of doing this for backwards compatibility
+                if SWEP.Deputize then
+                    -- TODO: Remove after 2.0.0
+                    function SWEP:Deputize()
+                        if not IsFirstTimePredicted() then return end
+
+                        local ply = self.Target
+                        if not IsPlayer(ply) or not ply:Alive() or ply:IsSpec() then
+                            self:Error("INVALID TARGET")
+                            return
+                        end
+
+                        Deputize(self, ply)
+
+                        self:GetOwner():ConCommand("lastinv")
+                        self:Remove()
+                        self:Reset()
+                    end
+                else
+                    function SWEP:OnSuccess(ply, body)
+                        Deputize(self, ply)
+                    end
                 end
             end
         end)
@@ -634,7 +647,10 @@ end)
 -- PROMOTION --
 ---------------
 
+-- TODO: Remove after 2.0
 AddHook("Initialize", "Detectoclown_Promotion_Initialize", function()
+    if CRVersion("1.9.9") then return end
+
     local plymeta = FindMetaTable("Player")
     local oldGetDetectiveLike = plymeta.GetDetectiveLike
     local oldGetDetectiveLikePromotable = plymeta.GetDetectiveLikePromotable
