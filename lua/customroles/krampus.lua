@@ -42,7 +42,7 @@ TableInsert(ROLE.convars, {
     type = ROLE_CONVAR_TYPE_BOOL
 })
 TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_target_vision_enable",
+    cvar = "ttt_krampus_target_vision_enabled",
     type = ROLE_CONVAR_TYPE_BOOL
 })
 TableInsert(ROLE.convars, {
@@ -116,11 +116,22 @@ KRAMPUS_NAUGHTY_OTHER = 3
 
 local krampus_target_damage_bonus = CreateConVar("ttt_krampus_target_damage_bonus", "0.1", FCVAR_REPLICATED, "Damage bonus for each naughty player killed (e.g. 0.1 = 10% extra damage)", 0, 1)
 local krampus_show_target_icon = CreateConVar("ttt_krampus_show_target_icon", "0", FCVAR_REPLICATED)
-local krampus_target_vision_enable = CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
+local krampus_target_vision_enabled = CreateConVar("ttt_krampus_target_vision_enabled", "0", FCVAR_REPLICATED)
 local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REPLICATED)
 local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1", FCVAR_REPLICATED)
 local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1", FCVAR_REPLICATED)
 local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1", FCVAR_REPLICATED)
+
+-- TODO: Remove alongside first release after 2.0
+local function OldCVarWarning(oldName, newName)
+    cvars.AddChangeCallback(oldName, function(convar, oldValue, newValue)
+        RunConsoleCommand(newName, newValue)
+        ErrorNoHalt("WARNING: ConVar \'" .. oldName .. "\' deprecated. Use \'" .. newName .. "\' instead!\n")
+    end)
+end
+
+CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
+OldCVarWarning("ttt_krampus_target_vision_enable", "ttt_krampus_target_vision_enabled")
 
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
@@ -389,7 +400,7 @@ if SERVER then
     AddHook("SetupPlayerVisibility", "Krampus_SetupPlayerVisibility", function(ply)
         if not ply:ShouldBypassCulling() then return end
         if not ply:IsActiveKrampus() then return end
-        if not krampus_target_vision_enable:GetBool() and not krampus_show_target_icon:GetBool() then return end
+        if not krampus_target_vision_enabled:GetBool() and not krampus_show_target_icon:GetBool() then return end
 
         local target_sid64 = ply:GetNWString("KrampusTarget", "")
         for _, v in ipairs(GetAllPlayers()) do
@@ -640,7 +651,7 @@ if CLIENT then
 
     AddHook("TTTUpdateRoleState", "Krampus_Highlight_TTTUpdateRoleState", function()
         client = LocalPlayer()
-        krampus_target_vision = krampus_target_vision_enable:GetBool()
+        krampus_target_vision = krampus_target_vision_enabled:GetBool()
 
         -- Disable highlights on role change
         if vision_enabled then
@@ -829,6 +840,10 @@ if CLIENT then
         end
 
         html = html .. "</ul>"
+
+        if krampus_target_vision_enabled:GetBool() then
+            html = html .. "<span style='display: block; margin-top: 10px;'>They are able to <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>see their target through walls</span> by highlighting them, helping the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " to track down and punish the naughty players.</span>"
+        end
 
         return html
     end)

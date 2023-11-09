@@ -33,7 +33,7 @@ SWEP.Category = WEAPON_CATEGORY_ROLE
 
 SWEP.HoldType = "fist"
 
-SWEP.ViewModel = Model("models/weapons/c_arms_cstrike.mdl")
+SWEP.ViewModel = Model("models/weapons/c_arms.mdl")
 SWEP.WorldModel = ""
 
 SWEP.HitDistance = 250
@@ -45,6 +45,7 @@ SWEP.Primary.Delay = 0.7
 
 SWEP.Kind = WEAPON_ROLE
 
+SWEP.UseHands = true
 SWEP.AllowDrop = false
 SWEP.IsSilent = false
 
