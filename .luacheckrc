@@ -1034,7 +1034,8 @@ globals = {
     "WIN_DETECTOCLOWN",
     "WIN_FAKER",
     "WIN_KRAMPUS",
-    "MarkPlayerNaughty"
+    "MarkPlayerNaughty",
+    "SetDetectoclownTeam"
 }
 std = {
     globals = {
