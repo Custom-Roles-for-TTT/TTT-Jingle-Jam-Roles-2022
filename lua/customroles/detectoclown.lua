@@ -121,13 +121,6 @@ local detectoclown_show_target_icon = CreateConVar("ttt_detectoclown_show_target
 local detectoclown_hide_when_active = CreateConVar("ttt_detectoclown_hide_when_active", "0", FCVAR_REPLICATED)
 local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_override_marshal_badge", "1", FCVAR_REPLICATED)
 
-local function GetReplicatedValue(onreplicated, onglobal)
-    if CRVersion("1.9.3") then
-        return onreplicated()
-    end
-    return onglobal()
-end
-
 if SERVER then
     AddCSLuaFile()
 
@@ -158,11 +151,7 @@ if SERVER then
         TableShuffle(names)
         local namePick = MathRandom(1, #names)
         local name = names[namePick]
-        GetReplicatedValue(function()
-                GetConVar("ttt_detectoclown_name"):SetString(name)
-            end, function()
-                SetGlobalString("ttt_detectoclown_name", name)
-            end)
+        GetConVar("ttt_detectoclown_name"):SetString(name)
         UpdateRoleStrings()
         timer.Simple(0.5, function()
             net.Start("TTT_UpdateRoleNames")
@@ -175,68 +164,44 @@ if SERVER then
     ----------------------------
     if detectoclown_override_marshal_badge:GetBool() then
         AddHook("PreRegisterSWEP", "Detectoclown_PreRegisterSWEP", function(SWEP, class)
-            if class == "weapon_mhl_badge" then
-                local function Deputize(this, ply)
-                    local role = ROLE_DETECTOCLOWN
-                    if ply:IsTraitorTeam() then
-                        role = ROLE_IMPERSONATOR
-                    elseif ply:IsInnocentTeam() then
-                        role = ROLE_DEPUTY
-                    end
+            if class ~= "weapon_mhl_badge" then return end
 
-                    ply:SetRole(role)
-                    SendFullStateUpdate()
-
-                    -- Update the player's health
-                    SetRoleMaxHealth(ply)
-                    if ply:Health() > ply:GetMaxHealth() then
-                        ply:SetHealth(ply:GetMaxHealth())
-                    end
-
-                    ply:StripRoleWeapons()
-                    if not ply:HasWeapon("weapon_ttt_unarmed") then
-                        ply:Give("weapon_ttt_unarmed")
-                    end
-                    if not ply:HasWeapon("weapon_zm_carry") then
-                        ply:Give("weapon_zm_carry")
-                    end
-                    if not ply:HasWeapon("weapon_zm_improvised") then
-                        ply:Give("weapon_zm_improvised")
-                    end
-
-                    local owner = this:GetOwner()
-                    hook.Call("TTTPlayerRoleChangedByItem", nil, owner, ply, this)
-
-                    net.Start("TTT_Deputized")
-                    net.WriteString(owner:Nick())
-                    net.WriteString(ply:Nick())
-                    net.WriteString(ply:SteamID64())
-                    net.Broadcast()
+            function SWEP:OnSuccess(ply, body)
+                local role = ROLE_DETECTOCLOWN
+                if ply:IsTraitorTeam() then
+                    role = ROLE_IMPERSONATOR
+                elseif ply:IsInnocentTeam() then
+                    role = ROLE_DEPUTY
                 end
 
-                -- Handle the old way of doing this for backwards compatibility
-                if SWEP.Deputize then
-                    -- TODO: Remove after 2.0.0
-                    function SWEP:Deputize()
-                        if not IsFirstTimePredicted() then return end
+                ply:SetRole(role)
+                SendFullStateUpdate()
 
-                        local ply = self.Target
-                        if not IsPlayer(ply) or not ply:Alive() or ply:IsSpec() then
-                            self:Error("INVALID TARGET")
-                            return
-                        end
-
-                        Deputize(self, ply)
-
-                        self:GetOwner():ConCommand("lastinv")
-                        self:Remove()
-                        self:Reset()
-                    end
-                else
-                    function SWEP:OnSuccess(ply, body)
-                        Deputize(self, ply)
-                    end
+                -- Update the player's health
+                SetRoleMaxHealth(ply)
+                if ply:Health() > ply:GetMaxHealth() then
+                    ply:SetHealth(ply:GetMaxHealth())
                 end
+
+                ply:StripRoleWeapons()
+                if not ply:HasWeapon("weapon_ttt_unarmed") then
+                    ply:Give("weapon_ttt_unarmed")
+                end
+                if not ply:HasWeapon("weapon_zm_carry") then
+                    ply:Give("weapon_zm_carry")
+                end
+                if not ply:HasWeapon("weapon_zm_improvised") then
+                    ply:Give("weapon_zm_improvised")
+                end
+
+                local owner = self:GetOwner()
+                hook.Call("TTTPlayerRoleChangedByItem", nil, owner, ply, self)
+
+                net.Start("TTT_Deputized")
+                net.WriteString(owner:Nick())
+                net.WriteString(ply:Nick())
+                net.WriteString(ply:SteamID64())
+                net.Broadcast()
             end
         end)
     end
@@ -276,8 +241,7 @@ if SERVER then
         local killer_detectoclown_active = detectoclown:GetNWBool("KillerDetectoclownActive")
         if not killer_detectoclown_active then
             detectoclown:SetNWBool("KillerDetectoclownActive", true)
-            detectoclown:PrintMessage(HUD_PRINTTALK, "KILL THEM ALL!")
-            detectoclown:PrintMessage(HUD_PRINTCENTER, "KILL THEM ALL!")
+            detectoclown:QueueMessage(MSG_PRINTBOTH, "KILL THEM ALL!")
             local state = detectoclown:GetNWInt("TTTInformantScanStage", INFORMANT_UNSCANNED)
             if state ~= INFORMANT_UNSCANNED and state < INFORMANT_SCANNED_ROLE then
                 detectoclown:SetNWInt("TTTInformantScanStage", INFORMANT_SCANNED_ROLE)
@@ -359,22 +323,14 @@ end
 
 if CLIENT then
 
-    local function UseDetectiveIcon()
-        return GetReplicatedValue(function()
-                return GetConVar("ttt_deputy_use_detective_icon"):GetBool()
-            end,
-            function()
-                return GetGlobalBool("ttt_deputy_use_detective_icon")
-            end)
-    end
-
     ---------------
     -- TARGET ID --
     ---------------
 
-    AddHook("TTTTargetIDPlayerKillIcon", "Detectoclown_TTTTargetIDPlayerKillIcon", function(ply, cli, showKillIcon, showJester)
+    -- Show skull icon over target players' heads
+    hook.Add("TTTTargetIDPlayerTargetIcon", "Detectoclown_TTTTargetIDPlayerTargetIcon", function(ply, cli, showJester)
         if cli:IsDetectoclown() and cli:GetNWBool("KillerDetectoclownActive") and detectoclown_show_target_icon:GetBool() and not showJester then
-            return true
+            return "kill", true, ROLE_COLORS_SPRITE[ROLE_DETECTOCLOWN], "down"
         end
     end)
 
@@ -419,7 +375,7 @@ if CLIENT then
 
         if IsDetectoclownPromoted(ent) then
             local role = ROLE_DEPUTY
-            if UseDetectiveIcon() then
+            if GetConVar("ttt_deputy_use_detective_icon"):GetBool() then
                 role = ROLE_DETECTIVE
             end
             return true, ROLE_COLORS_RADAR[role]
@@ -443,7 +399,7 @@ if CLIENT then
 
         if IsDetectoclownPromoted(ent) then
             local role = ROLE_DEPUTY
-            if UseDetectiveIcon() then
+            if GetConVar("ttt_deputy_use_detective_icon"):GetBool() then
                 role = ROLE_DETECTIVE
             end
             return StringUpper(ROLE_STRINGS[role]), ROLE_COLORS_RADAR[role]
@@ -564,18 +520,6 @@ if CLIENT then
     -- TUTORIAL --
     --------------
 
-    hook.Add("TTTTutorialRoleEnabled", "Detectoclown_TTTTutorialRoleEnabled", function(role) -- TODO: Remove after 2.0.0
-        if role == ROLE_DETECTOCLOWN then
-            local marshal_enabled = GetReplicatedValue(function()
-                return GetConVar("ttt_marshal_enabled"):GetBool()
-            end, function()
-                return GetGlobalBool("ttt_marshal_enabled", false)
-            end)
-            -- Show the detectoclown screen if the marshal could spawn them
-            return marshal_enabled and detectoclown_override_marshal_badge:GetBool()
-        end
-    end)
-
     AddHook("TTTTutorialRoleText", "Detectoclown_TTTTutorialRoleText", function(role, titleLabel)
         if role == ROLE_DETECTOCLOWN then
             -- Use this for highlighting things like "kill"
@@ -591,7 +535,7 @@ if CLIENT then
 
             -- Icon
             html = html .. "<span style='display: block; margin-top: 10px;'>Once promoted, <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>all players</span> will see the "
-            if UseDetectiveIcon() then
+            if GetConVar("ttt_deputy_use_detective_icon"):GetBool() then
                 html = html .. ROLE_STRINGS[ROLE_DETECTIVE]
             else
                 html = html .. ROLE_STRINGS[ROLE_DEPUTY]
@@ -610,16 +554,9 @@ if CLIENT then
 
             -- Shop
             html = html .. "<span style='display: block; margin-top: 10px;'>The " .. ROLE_STRINGS[ROLE_DETECTOCLOWN] .. " has access to a <span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>weapon shop</span>"
-            local shop_active_only = GetReplicatedValue(function()
-                    return GetConVar("ttt_detectoclown_shop_active_only"):GetBool()
-                end, function()
-                    return GetGlobalBool("ttt_detectoclown_shop_active_only", true)
-                end)
-            local shop_delay = GetReplicatedValue(function()
-                    return GetConVar("ttt_detectoclown_shop_delay"):GetBool()
-                end, function()
-                    return GetGlobalBool("ttt_detectoclown_shop_delay", true)
-                end)
+
+            local shop_active_only = GetConVar("ttt_detectoclown_shop_active_only"):GetBool()
+            local shop_delay = GetConVar("ttt_detectoclown_shop_delay"):GetBool()
             if shop_active_only then
                 html = html .. ", but only <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>after they are promoted</span>"
             elseif shop_delay then
@@ -641,23 +578,6 @@ hook.Add("TTTRoleSpawnsArtificially", "Detectoclown_TTTRoleSpawnsArtificially", 
     if role == ROLE_DETECTOCLOWN and GetConVar("ttt_marshal_enabled"):GetBool() and detectoclown_override_marshal_badge:GetBool() then
         return true
     end
-end)
-
----------------
--- PROMOTION --
----------------
-
--- TODO: Remove after 2.0
-AddHook("Initialize", "Detectoclown_Promotion_Initialize", function()
-    if CRVersion("1.9.9") then return end
-
-    local plymeta = FindMetaTable("Player")
-    local oldGetDetectiveLike = plymeta.GetDetectiveLike
-    local oldGetDetectiveLikePromotable = plymeta.GetDetectiveLikePromotable
-    function plymeta:GetDetectiveLike() return oldGetDetectiveLike(self) or (self:IsDetectoclown() and self:IsRoleActive()) end
-    function plymeta:GetDetectiveLikePromotable() return oldGetDetectiveLikePromotable(self) or (self:IsDetectoclown() and not self:IsRoleActive()) end
-    plymeta.IsDetectiveLike = plymeta.GetDetectiveLike
-    plymeta.IsDetectiveLikePromotable = plymeta.GetDetectiveLikePromotable
 end)
 
 RegisterRole(ROLE)

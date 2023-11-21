@@ -31,8 +31,6 @@ Any player that damages you or the innocents is considered naughty.
 
 ROLE.team = ROLE_TEAM_INDEPENDENT
 
-ROLE.shoulddelayannouncements = true
-
 ROLE.shop = {}
 
 ROLE.convars = {}
@@ -200,8 +198,7 @@ if SERVER then
         -- Alert players when they become naughty
         if krampus_naughty_notify:GetBool() then
             local message = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " has decided that you are naughty... Watch out!"
-            ply:PrintMessage(HUD_PRINTCENTER, message)
-            ply:PrintMessage(HUD_PRINTTALK, message)
+            ply:QueueMessage(MSG_PRINTBOTH, message)
         end
     end
 
@@ -247,8 +244,7 @@ if SERVER then
         if ply:Alive() and not ply:IsSpec() then
             -- Don't show "target eliminated" if this is their first target or they were waiting for someone to be naughty
             if #target > 0 and not delay and not start then targetMessage = "Target eliminated. " .. targetMessage end
-            ply:PrintMessage(HUD_PRINTCENTER, targetMessage)
-            ply:PrintMessage(HUD_PRINTTALK, targetMessage)
+            ply:QueueMessage(MSG_PRINTBOTH, targetMessage)
         end
     end
 
@@ -266,8 +262,7 @@ if SERVER then
                     v:SetNWString("KrampusTarget", "")
 
                     if v:Alive() and not v:IsSpec() then
-                        v:PrintMessage(HUD_PRINTCENTER, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
-                        v:PrintMessage(HUD_PRINTTALK, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
+                        v:QueueMessage(MSG_PRINTBOTH, "Target eliminated. You will receive your next assignment in " .. tostring(delay) .. " seconds.")
                     end
                     timer.Create(v:Nick() .. "KrampusTarget", delay, 1, function()
                         AssignKrampusTarget(v, false, true)
@@ -321,8 +316,7 @@ if SERVER then
             if not keep_on_source then ply:SetNWString("KrampusTarget", "") end
             target:SetNWString("KrampusTarget", krampusTarget)
             local target_nick = player.GetBySteamID64(krampusTarget):Nick()
-            target:PrintMessage(HUD_PRINTCENTER, "You have learned that your predecessor's target was " .. target_nick)
-            target:PrintMessage(HUD_PRINTTALK, "You have learned that your predecessor's target was " .. target_nick)
+            target:QueueMessage(MSG_PRINTBOTH, "You have learned that your predecessor's target was " .. target_nick)
         elseif ply:IsKrampus() then
             -- If the player we're taking the role state from was an krampus but they didn't have a target, try to assign a target to this player
             -- Use a slight delay to let the role change go through first just in case
@@ -442,13 +436,9 @@ if SERVER then
 
         timer.Simple(1.5, function()
             local plys = GetAllPlayers()
-
-            local hasGlitch = false
             local hasKrampus = false
             for _, v in ipairs(plys) do
-                if v:IsGlitch() then
-                    hasGlitch = true
-                elseif v:IsKrampus() then
+                if v:IsKrampus() then
                     hasKrampus = true
                 end
             end
@@ -459,16 +449,7 @@ if SERVER then
                 local isTraitor = v:IsTraitorTeam()
                 -- Warn this player about the Krampus if they are a traitor or we are configured to warn everyone
                 if not v:IsKrampus() and (isTraitor or krampus_warn_all:GetBool()) then
-                    v:PrintMessage(HUD_PRINTTALK, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
-                    -- Only delay this if the player is a traitor and there is a glitch
-                    -- This gives time for the glitch warning to go away
-                    if isTraitor and hasGlitch then
-                        timer.Simple(3, function()
-                            v:PrintMessage(HUD_PRINTCENTER, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
-                        end)
-                    else
-                        v:PrintMessage(HUD_PRINTCENTER, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
-                    end
+                    v:QueueMessage(MSG_PRINTBOTH, "There is " .. ROLE_STRINGS_EXT[ROLE_KRAMPUS] .. ".")
                 end
             end
         end)
@@ -578,10 +559,10 @@ if CLIENT then
     -- TARGET ID --
     ---------------
 
-    -- Show "KILL" icon over the target's head
-    AddHook("TTTTargetIDPlayerKillIcon", "Krampus_TTTTargetIDPlayerKillIcon", function(ply, cli, showKillIcon, showJester)
+    -- Show skull icon over the target's head
+    hook.Add("TTTTargetIDPlayerTargetIcon", "Krampus_TTTTargetIDPlayerTargetIcon", function(ply, cli, showJester)
         if cli:IsKrampus() and krampus_show_target_icon:GetBool() and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester then
-            return true
+            return "kill", true, ROLE_COLORS_SPRITE[ROLE_KRAMPUS], "down"
         end
     end)
 
