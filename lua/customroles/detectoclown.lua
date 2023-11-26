@@ -140,8 +140,8 @@ local detectoclown_use_traps_when_active = CreateConVar("ttt_detectoclown_use_tr
 local detectoclown_show_target_icon = CreateConVar("ttt_detectoclown_show_target_icon", "0", FCVAR_REPLICATED)
 local detectoclown_hide_when_active = CreateConVar("ttt_detectoclown_hide_when_active", "0", FCVAR_REPLICATED)
 local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_override_marshal_badge", "1", FCVAR_REPLICATED)
-CreateConVar("ttt_detectoclown_can_see_jesters", 0, FCVAR_REPLICATED)
-CreateConVar("ttt_detectoclown_update_scoreboard", 0, FCVAR_REPLICATED)
+CreateConVar("ttt_detectoclown_can_see_jesters", 1, FCVAR_REPLICATED)
+CreateConVar("ttt_detectoclown_update_scoreboard", 1, FCVAR_REPLICATED)
 
 if CRVersion("2.0.1") then
     AddHook("TTTDetectiveLikePromoted", "Detectoclown_TTTDetectiveLikePromoted", function(ply)

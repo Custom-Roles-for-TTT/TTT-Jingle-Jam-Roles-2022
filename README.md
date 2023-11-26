@@ -26,6 +26,8 @@ ttt_detectoclown_blocks_impersonator    0   // Whether the detectoclown should p
 ttt_detectoclown_activation_credits     0   // The number of credits to give the detectoclown when they are promoted
 ttt_detectoclown_shop_active_only       1   // Whether the detectoclown's shop should be available only after they activate
 ttt_detectoclown_shop_delay             0   // Whether the detectoclown's purchased shop items should be held until they activate
+ttt_detectoclown_can_see_jesters        1   // Whether jesters are revealed (via head icons, color/icon on the scoreboard, etc.) to the detectoclown
+ttt_detectoclown_update_scoreboard      1   // Whether the detectoclown shows dead players as missing in action
 ```
 
 ## Faker
