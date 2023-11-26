@@ -222,8 +222,7 @@ if SERVER then
         local wep = ply:GetWeapon(id)
 
         if TableHasValue(ply.FakerFakesBought, id) then
-            ply:PrintMessage(HUD_PRINTTALK, "You have already used this weapon! Credit refunded.")
-            ply:PrintMessage(HUD_PRINTCENTER, "You have already used this weapon! Credit refunded.")
+            ply:QueueMessage(MSG_PRINTBOTH, "You have already used this weapon! Credit refunded.")
             ply:AddCredits(1)
             wep:Remove()
         else
@@ -295,24 +294,20 @@ if SERVER then
             ply:SetNWInt("FakerFakeCount", count)
             snd = "buttons/bell1.wav"
             if count >= faker_required_fakes:GetInt() then
-                ply:PrintMessage(HUD_PRINTTALK, "You have used enough fakes! Survive to win!" .. suffix)
-                ply:PrintMessage(HUD_PRINTCENTER, "You have used enough fakes! Survive to win!" .. suffix)
+                ply:QueueMessage(MSG_PRINTBOTH, "You have used enough fakes! Survive to win!" .. suffix)
             else
                 local delay = faker_credits_timer:GetInt()
                 if delay == 0 then
-                    ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
-                    ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
+                    ply:QueueMessage(MSG_PRINTBOTH, "You have received another credit.")
                     ply:AddCredits(1)
                 else
                     local seconds = " seconds."
                     if delay == 1 then
                         seconds = " second."
                     end
-                    ply:PrintMessage(HUD_PRINTTALK, "You will receive another credit in " .. delay .. seconds .. suffix)
-                    ply:PrintMessage(HUD_PRINTCENTER, "You will receive another credit in " .. delay .. seconds .. suffix)
+                    ply:QueueMessage(MSG_PRINTBOTH, "You will receive another credit in " .. delay .. seconds .. suffix)
                     TimerCreate(ply:SteamID64() .. "FakerCreditTimer", delay, 1, function()
-                        ply:PrintMessage(HUD_PRINTTALK, "You have received another credit.")
-                        ply:PrintMessage(HUD_PRINTCENTER, "You have received another credit.")
+                        ply:QueueMessage(MSG_PRINTBOTH, "You have received another credit.")
                         ply:AddCredits(1)
                     end)
                 end
