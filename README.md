@@ -1,5 +1,5 @@
 # _Custom Roles for TTT_ Roles Pack for Jingle Jam 2022
-A pack of [Custom Roles for TTT](https://github.com/NoxxFlame/TTT-Custom-Roles) roles created based on the generous donations of our community members in support of [Jingle Jam 2022](https://www.jinglejam.co.uk/).
+A pack of [Custom Roles for TTT](https://github.com/Custom-Roles-for-TTT/TTT-Custom-Roles) roles created based on the generous donations of our community members in support of [Jingle Jam 2022](https://www.jinglejam.co.uk/).
 
 # Roles
 
@@ -79,6 +79,6 @@ ttt_krampus_struggle_interval           0.25 // The number of seconds between vi
 ttt_krampus_struggle_reduction          0.25 // The number of seconds a struggle reduces carry duration by
 ```
 
-## Special Thanks
+# Special Thanks
 - [Game icons](https://game-icons.net/) for the role icons
 - [DBKEEBLER](https://freesound.org/people/DBKEEBLER/sounds/403684/) on FreeSound.org for the Krampus' victim struggle sounds
