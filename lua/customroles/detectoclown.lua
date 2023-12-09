@@ -146,7 +146,6 @@ CreateConVar("ttt_detectoclown_update_scoreboard", 1, FCVAR_REPLICATED)
 if CRVersion("2.0.1") then
     AddHook("TTTDetectiveLikePromoted", "Detectoclown_TTTDetectiveLikePromoted", function(ply)
         if ply:IsDetectoclown() and not ply:IsIndependentTeam() then
-            print("TTTDetectiveLikePromoted", ply)
             SetDetectoclownTeam(true)
         end
     end)
@@ -155,7 +154,6 @@ else
     local oldHandleDetectiveLikePromotion = plymeta.HandleDetectiveLikePromotion
     function plymeta:HandleDetectiveLikePromotion()
         if self:IsDetectoclown() and not self:IsIndependentTeam() then
-            print("HandleDetectiveLikePromotion", self)
             SetDetectoclownTeam(true)
         end
 
