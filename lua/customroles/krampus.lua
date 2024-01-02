@@ -120,17 +120,6 @@ local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1
 local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1", FCVAR_REPLICATED)
 local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1", FCVAR_REPLICATED)
 
--- TODO: Remove alongside first release after 2.0
-local function OldCVarWarning(oldName, newName)
-    cvars.AddChangeCallback(oldName, function(convar, oldValue, newValue)
-        RunConsoleCommand(newName, newValue)
-        ErrorNoHalt("WARNING: ConVar \'" .. oldName .. "\' deprecated. Use \'" .. newName .. "\' instead!\n")
-    end)
-end
-
-CreateConVar("ttt_krampus_target_vision_enable", "0", FCVAR_REPLICATED)
-OldCVarWarning("ttt_krampus_target_vision_enable", "ttt_krampus_target_vision_enabled")
-
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
     if ply:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
