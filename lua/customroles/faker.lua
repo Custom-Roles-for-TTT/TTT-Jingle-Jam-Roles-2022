@@ -387,6 +387,10 @@ if SERVER then
                 end)
 
         local drops = MathMin(faker_drop_weapons_on_death:GetInt(), #victim.FakerFakesBought)
+
+        -- Don't try to drop they have nothing or it's disabled
+        if drops <= 0 then return end
+
         timer.Create("FakerWeaponDrop", 0.05, drops, function()
             local ragdoll = victim.server_ragdoll or victim:GetRagdollEntity()
             local pos = ragdoll:GetPos() + Vector(0, 0, 25)
