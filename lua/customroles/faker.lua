@@ -69,6 +69,10 @@ TableInsert(ROLE.convars, {
     decimal = 0
 })
 TableInsert(ROLE.convars, {
+    cvar = "ttt_faker_drop_shop_weapons",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
+TableInsert(ROLE.convars, {
     cvar = "ttt_faker_notify_mode",
     type = ROLE_CONVAR_TYPE_NUM,
     decimal = 0
@@ -119,6 +123,7 @@ local faker_credits_timer = CreateConVar("ttt_faker_credits_timer", "15", FCVAR_
 local faker_line_of_sight_required = CreateConVar("ttt_faker_line_of_sight_required", "1", FCVAR_REPLICATED)
 local faker_minimum_distance = CreateConVar("ttt_faker_minimum_distance", "10", FCVAR_REPLICATED, "The minimum distance (in metres) the faker must be from another player for their fake weapon use to count", 0, 30)
 local faker_drop_weapons_on_death = CreateConVar("ttt_faker_drop_weapons_on_death", "3", FCVAR_REPLICATED, "The maximum number of weapons the faker should drop when they die", 0, 10)
+local faker_drop_shop_weapons = CreateConVar("ttt_faker_drop_shop_weapons", "0", FCVAR_REPLICATED, "Whether to drop shop weapons in addition to the weapons the faker used if they used fewer than \"ttt_faker_drop_weapons_on_death\"", 0, 1)
 
 local function GetFakerState(ply)
     local los = faker_line_of_sight_required:GetBool()
@@ -386,18 +391,51 @@ if SERVER then
                     return "The " .. ROLE_STRINGS[ROLE_FAKER] .. " has been killed!"
                 end)
 
-        local drops = MathMin(faker_drop_weapons_on_death:GetInt(), #victim.FakerFakesBought)
+        local max_drops = faker_drop_weapons_on_death:GetInt()
+        local drops = MathMin(max_drops, #victim.FakerFakesBought)
+        local drop_shop_weapons = faker_drop_shop_weapons:GetBool()
+
+        -- If we're configured to drop shop weapons in addition and we don't have enough fakes,
+        -- make sure the max number of drops are set and we'll handle the difference in the drop logic
+        if drops < max_drops and drop_shop_weapons then
+            drops = max_drops
+        end
 
         -- Don't try to drop they have nothing or it's disabled
         if drops <= 0 then return end
 
+        local shop_table = {}
+        local fakes_copy = table.Copy(victim.FakerFakesBought)
         timer.Create("FakerWeaponDrop", 0.05, drops, function()
             local ragdoll = victim.server_ragdoll or victim:GetRagdollEntity()
             local pos = ragdoll:GetPos() + Vector(0, 0, 25)
 
-            local idx = MathRandom(1, #victim.FakerFakesBought)
-            local wep = victim.FakerFakesBought[idx]
-            table.remove(victim.FakerFakesBought, idx)
+            local loot_table
+            -- Start with giving the weapons the faker bought before anything
+            if #fakes_copy > 0 then
+                loot_table = fakes_copy
+            else
+                if #shop_table == 0 then -- Rebuild the loot table if we run out
+                    for _, v in ipairs(weapons.GetList()) do
+                        local wep_class = WEPS.GetClass(v)
+                        if v and not v.AutoSpawnable and v.CanBuy and #v.CanBuy > 0 and v.AllowDrop and
+                                -- Don't drop the bought weapons a second time
+                                not table.HasValue(victim.FakerFakesBought, wep_class) then
+                            TableInsert(shop_table, wep_class)
+                        end
+                    end
+                end
+
+                loot_table = shop_table
+            end
+
+            -- Sanity check in case we somehow don't have any weapons to drop
+            if #loot_table == 0 then return end
+
+            local idx = MathRandom(1, #loot_table)
+            local wep = loot_table[idx]
+            table.remove(loot_table, idx)
+
             local ent = CreateEntity(wep)
             ent:SetPos(pos)
             ent:Spawn()
