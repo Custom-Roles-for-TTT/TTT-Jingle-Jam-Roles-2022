@@ -774,7 +774,13 @@ if CLIENT then
         local T = LANG.GetTranslation
         local roleTeam = player.GetRoleTeam(ROLE_KRAMPUS, true)
         local roleTeamName, roleColor = GetRoleTeamInfo(roleTeam)
-        local html = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " is an <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. roleTeamName .. "</span> role whose goal is to punish the naughty players."
+        local roleTeamString
+        if MONSTER_ROLES[ROLE_KRAMPUS] then
+            roleTeamString = "a " .. roleTeamName
+        else
+            roleTeamString = "an " .. roleTeamName
+        end
+        local html = "The " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " is <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>" .. roleTeamString .. "</span> role whose goal is to punish the naughty players."
 
         if krampus_target_damage_bonus:GetFloat() > 0 then
             html = html .. "<span style='display: block; margin-top: 10px;'>The more naughty players the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " kills, the more damage the " .. ROLE_STRINGS[ROLE_KRAMPUS] .. " does.</span>"
