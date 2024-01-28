@@ -143,24 +143,6 @@ local detectoclown_override_marshal_badge = CreateConVar("ttt_detectoclown_overr
 CreateConVar("ttt_detectoclown_can_see_jesters", 1, FCVAR_REPLICATED)
 CreateConVar("ttt_detectoclown_update_scoreboard", 1, FCVAR_REPLICATED)
 
-if CRVersion("2.0.1") then
-    AddHook("TTTDetectiveLikePromoted", "Detectoclown_TTTDetectiveLikePromoted", function(ply)
-        if ply:IsDetectoclown() and not ply:IsIndependentTeam() then
-            SetDetectoclownTeam(true)
-        end
-    end)
-else
-    local plymeta = FindMetaTable("Player")
-    local oldHandleDetectiveLikePromotion = plymeta.HandleDetectiveLikePromotion
-    function plymeta:HandleDetectiveLikePromotion()
-        if self:IsDetectoclown() and not self:IsIndependentTeam() then
-            SetDetectoclownTeam(true)
-        end
-
-        oldHandleDetectiveLikePromotion(self)
-    end
-end
-
 if SERVER then
     AddCSLuaFile()
 
@@ -175,9 +157,20 @@ if SERVER then
     util.AddNetworkString("TTT_DetectoclownTeamChange")
     util.AddNetworkString("TTT_DetectoclownActivate")
 
+    ----------------------
+    -- ROLE TEAM CHANGE --
+    ----------------------
+
+    AddHook("TTTDetectiveLikePromoted", "Detectoclown_TTTDetectiveLikePromoted", function(ply)
+        if ply:IsDetectoclown() and not ply:IsIndependentTeam() then
+            SetDetectoclownTeam(true)
+        end
+    end)
+
     ---------------------
     -- SILLY ROLE NAME --
     ---------------------
+
     local names = {
         "Detectoclown",
         "Impersoclown",
@@ -203,6 +196,7 @@ if SERVER then
     ----------------------------
     -- MARSHAL BADGE OVERRIDE --
     ----------------------------
+
     if detectoclown_override_marshal_badge:GetBool() then
         AddHook("PreRegisterSWEP", "Detectoclown_PreRegisterSWEP", function(SWEP, class)
             if class ~= "weapon_mhl_badge" then return end
