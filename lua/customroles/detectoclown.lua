@@ -633,7 +633,7 @@ if CLIENT then
 end
 
 hook.Add("TTTRoleSpawnsArtificially", "Detectoclown_TTTRoleSpawnsArtificially", function(role)
-    if role == ROLE_DETECTOCLOWN and GetConVar("ttt_marshal_enabled"):GetBool() and detectoclown_override_marshal_badge:GetBool() then
+    if role == ROLE_DETECTOCLOWN and util.CanRoleSpawn(ROLE_MARSHAL) and detectoclown_override_marshal_badge:GetBool() then
         return true
     end
 end)
