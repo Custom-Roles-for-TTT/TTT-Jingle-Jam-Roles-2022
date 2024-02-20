@@ -177,17 +177,15 @@ if SERVER then
             TableInsert(blocklist, blocked_id:Trim())
         end
 
-        local roleweapons = {}
         for _, wep in pairs(weapons.GetList()) do
             local class = wep.ClassName
             local weapon = weapons.GetStored(class)
             local canbuy = weapon.CanBuy
             if canbuy then
                 for _, role in pairs(GetTeamRoles(TRAITOR_ROLES)) do
-                    if TableHasValue(canbuy, role) and not TableHasValue(WEPS.ExcludeWeapons[role], class) and not TableHasValue(blocklist, class) and weapon.Primary.Damage and weapon.Primary.Damage > 0 then
-                        if not TableHasValue(roleweapons, class) then
+                    if TableHasValue(canbuy, role) and not TableHasValue(WEPS.RolePackExcludeWeapons[role], class) and not TableHasValue(WEPS.ExcludeWeapons[role], class) and not TableHasValue(blocklist, class) and weapon.Primary.Damage and weapon.Primary.Damage > 0 then
+                        if not TableHasValue(WEPS.BuyableWeapons[ROLE_FAKER], class) then
                             TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
-                            TableInsert(roleweapons, class)
                         end
                     end
                 end
@@ -197,10 +195,19 @@ if SERVER then
             if WEPS.BuyableWeapons[role] then
                 for _, class in pairs(WEPS.BuyableWeapons[role]) do
                     local wep = weapons.GetStored(class)
-                    if  not TableHasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 then
-                        if not TableHasValue(roleweapons, class) then
+                    if not TableHasValue(WEPS.RolePackExcludeWeapons[role], class) and not TableHasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 then
+                        if not TableHasValue(WEPS.BuyableWeapons[ROLE_FAKER], class) then
                             TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
-                            TableInsert(roleweapons, class)
+                        end
+                    end
+                end
+            end
+            if WEPS.RolePackBuyableWeapons[role] then
+                for _, class in pairs(WEPS.RolePackBuyableWeapons[role]) do
+                    local wep = weapons.GetStored(class)
+                    if  not TableHasValue(blocklist, class) and wep and wep.Primary.Damage and wep.Primary.Damage > 0 then
+                        if not TableHasValue(WEPS.BuyableWeapons[ROLE_FAKER], class) then
+                            TableInsert(WEPS.BuyableWeapons[ROLE_FAKER], class)
                         end
                     end
                 end
@@ -209,9 +216,9 @@ if SERVER then
 
         net.Start("TTT_BuyableWeapons")
         net.WriteInt(ROLE_FAKER, 16)
-        net.WriteTable(roleweapons)
-        net.WriteTable({ })
-        net.WriteTable({ })
+        net.WriteTable(WEPS.BuyableWeapons[ROLE_FAKER])
+        net.WriteTable(WEPS.ExcludeWeapons[ROLE_FAKER])
+        net.WriteTable(WEPS.BypassRandomWeapons[ROLE_FAKER])
         net.Broadcast()
     end)
 
@@ -274,11 +281,11 @@ if SERVER then
         if not wep.FakerWeaponState or wep.FakerWeaponState ~= FAKER_WEAPON_FAKE then return end
         if wep.GetNextPrimaryFire and wep:GetNextPrimaryFire() > CurTime() then return end
 
-        if wep.Primary and wep.Primary.ClipSize and wep.Primary.ClipSize > 0 then
-            timer.Simple(0.1, function()
+        timer.Simple(0.1, function()
+            if wep.Primary and wep.Primary.ClipSize and wep.Primary.ClipSize > 0 then
                 wep:SetClip1(wep.Primary.ClipSize) -- We do this after a slight delay so the clip is always full instead of missing a single round
-            end)
-        end
+            end
+        end)
 
         local class = WEPS.GetClass(wep)
         if TableHasValue(ply.FakerFakesUsed, class) then return end
