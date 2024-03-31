@@ -215,10 +215,11 @@ if SERVER then
         end
 
         net.Start("TTT_BuyableWeapons")
-        net.WriteInt(ROLE_FAKER, 16)
-        net.WriteTable(WEPS.BuyableWeapons[ROLE_FAKER])
-        net.WriteTable(WEPS.ExcludeWeapons[ROLE_FAKER])
-        net.WriteTable(WEPS.BypassRandomWeapons[ROLE_FAKER])
+            net.WriteInt(ROLE_FAKER, 16)
+            -- TODO: Change to hardcoded "true" after 2.1.10 is pushed to release
+            net.WriteTable(WEPS.BuyableWeapons[ROLE_FAKER], CRVersion("2.1.10"))
+            net.WriteTable(WEPS.ExcludeWeapons[ROLE_FAKER], CRVersion("2.1.10"))
+            net.WriteTable(WEPS.BypassRandomWeapons[ROLE_FAKER], CRVersion("2.1.10"))
         net.Broadcast()
     end)
 
