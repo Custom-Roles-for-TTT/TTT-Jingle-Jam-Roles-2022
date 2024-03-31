@@ -1,5 +1,4 @@
 local hook = hook
-local ipairs = ipairs
 local math = math
 local net = net
 local player = player
@@ -7,7 +6,7 @@ local table = table
 local util = util
 
 local AddHook = hook.Add
-local GetAllPlayers = player.GetAll
+local PlayerIterator = player.Iterator
 local TableInsert = table.insert
 local TableShuffle = table.Shuffle
 local StringLower = string.lower
@@ -115,7 +114,7 @@ ROLE.moverolestate = function(ply, target, keep_on_source)
 end
 
 ROLE.selectionpredicate = function()
-    for _, p in ipairs(GetAllPlayers()) do
+    for _, p in PlayerIterator() do
         if p:IsMarshal() or (p:IsImpersonator() and GetConVar("ttt_detectoclown_blocks_impersonator"):GetBool()) then
             return false
         end
@@ -249,7 +248,7 @@ if SERVER then
         if detectoclown_blocks_deputy:GetBool() then
             local oldDeputyPredicate = ROLE_SELECTION_PREDICATE[ROLE_DEPUTY]
             ROLE_SELECTION_PREDICATE[ROLE_DEPUTY] = function()
-                for _, p in ipairs(GetAllPlayers()) do
+                for _, p in PlayerIterator() do
                     if p:IsDetectoclown() then
                         return false
                     end
@@ -359,7 +358,7 @@ if SERVER then
 
     AddHook("TTTPrepareRound", "Detectoclown_PrepareRound", function()
         TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = false
-        for _, v in pairs(GetAllPlayers()) do
+        for _, v in PlayerIterator() do
             v:SetNWBool("KillerDetectoclownActive", false)
         end
         SetDetectoclownTeam(false)
