@@ -1,15 +1,13 @@
 local hook = hook
-local ipairs = ipairs
 local IsValid = IsValid
 local math = math
-local pairs = pairs
 local player = player
 local table = table
 local timer = timer
 local util = util
 
 local AddHook = hook.Add
-local GetAllPlayers = player.GetAll
+local PlayerIterator = player.Iterator
 local MathMax = math.max
 local RemoveHook = hook.Remove
 local TableInsert = table.insert
@@ -204,7 +202,7 @@ if SERVER then
         ply:SetNWString("KrampusTarget", "")
 
         local naughtyPlayers = {}
-        for _, p in ipairs(GetAllPlayers()) do
+        for _, p in PlayerIterator() do
             if not p:Alive() or p:IsSpec() then continue end
             if p == ply then continue end
 
@@ -238,7 +236,7 @@ if SERVER then
     end
 
     local function UpdateKrampusTargets(ply)
-        for _, v in pairs(GetAllPlayers()) do
+        for _, v in PlayerIterator() do
             local krampustarget = v:GetNWString("KrampusTarget", "")
             if v:IsKrampus() and ply:SteamID64() == krampustarget then
                 -- Keep track of what their target was so we can tell them a new target was identified
@@ -329,7 +327,7 @@ if SERVER then
 
     -- Clear the krampus target information when the next round starts
     AddHook("TTTPrepareRound", "Krampus_Target_PrepareRound", function()
-        for _, v in pairs(GetAllPlayers()) do
+        for _, v in PlayerIterator() do
             ResetKrampusState(v)
         end
     end)
@@ -386,7 +384,7 @@ if SERVER then
         if not krampus_target_vision_enabled:GetBool() and not krampus_show_target_icon:GetBool() then return end
 
         local target_sid64 = ply:GetNWString("KrampusTarget", "")
-        for _, v in ipairs(GetAllPlayers()) do
+        for _, v in PlayerIterator() do
             if v:SteamID64() ~= target_sid64 then continue end
             if ply:TestPVS(v) then continue end
 
@@ -424,9 +422,8 @@ if SERVER then
         if not krampus_warn:GetBool() then return end
 
         timer.Simple(1.5, function()
-            local plys = GetAllPlayers()
             local hasKrampus = false
-            for _, v in ipairs(plys) do
+            for _, v in PlayerIterator() do
                 if v:IsKrampus() then
                     hasKrampus = true
                 end
@@ -434,7 +431,7 @@ if SERVER then
 
             if not hasKrampus then return end
 
-            for _, v in ipairs(plys) do
+            for _, v in PlayerIterator() do
                 local isTraitor = v:IsTraitorTeam()
                 -- Warn this player about the Krampus if they are a traitor or we are configured to warn everyone
                 if not v:IsKrampus() and (isTraitor or krampus_warn_all:GetBool()) then
@@ -455,7 +452,7 @@ if SERVER then
     AddHook("TTTCheckForWin", "Krampus_TTTCheckForWin", function()
         local krampus_alive = false
         local other_alive = false
-        for _, v in ipairs(GetAllPlayers()) do
+        for _, v in PlayerIterator() do
             if v:Alive() and v:IsTerror() then
                 if v:IsKrampus() then
                     krampus_alive = true
@@ -483,7 +480,7 @@ if SERVER then
 
         -- Check for naughty players
         local hasNaughty = false
-        for _, p in ipairs(GetAllPlayers()) do
+        for _, p in PlayerIterator() do
             if not p:Alive() or p:IsSpec() then continue end
             if p == krampus then continue end
             if p:GetNWInt("KrampusNaughty", KRAMPUS_NAUGHTY_NONE) > KRAMPUS_NAUGHTY_NONE then
@@ -605,7 +602,7 @@ if CLIENT then
             if not target_sid64 or #target_sid64 == 0 then return end
 
             local target = nil
-            for _, v in pairs(GetAllPlayers()) do
+            for _, v in PlayerIterator() do
                 if IsValid(v) and v:Alive() and not v:IsSpec() and v ~= client and v:SteamID64() == target_sid64 then
                     target = v
                     break
@@ -692,7 +689,7 @@ if CLIENT then
         if wintype == WIN_KRAMPUS then return end
 
         local hasKrampus = false
-        for _, p in ipairs(GetAllPlayers()) do
+        for _, p in PlayerIterator() do
             if p:IsKrampus() then
                 hasKrampus = true
             end

@@ -9,7 +9,7 @@ local table = table
 local timer = timer
 
 local AddHook = hook.Add
-local GetAllPlayers = player.GetAll
+local PlayerIterator = player.Iterator
 local StringGMatch = string.gmatch
 local TableCount = table.Count
 local TableHasValue = table.HasValue
@@ -215,10 +215,11 @@ if SERVER then
         end
 
         net.Start("TTT_BuyableWeapons")
-        net.WriteInt(ROLE_FAKER, 16)
-        net.WriteTable(WEPS.BuyableWeapons[ROLE_FAKER])
-        net.WriteTable(WEPS.ExcludeWeapons[ROLE_FAKER])
-        net.WriteTable(WEPS.BypassRandomWeapons[ROLE_FAKER])
+            net.WriteInt(ROLE_FAKER, 16)
+            -- TODO: Change to hardcoded "true" after 2.1.10 is pushed to release
+            net.WriteTable(WEPS.BuyableWeapons[ROLE_FAKER], CRVersion("2.1.10"))
+            net.WriteTable(WEPS.ExcludeWeapons[ROLE_FAKER], CRVersion("2.1.10"))
+            net.WriteTable(WEPS.BypassRandomWeapons[ROLE_FAKER], CRVersion("2.1.10"))
         net.Broadcast()
     end)
 
@@ -358,7 +359,7 @@ if SERVER then
 
         local inlos = ""
         local inrange = ""
-        for _, p in ipairs(player.GetAll()) do
+        for _, p in PlayerIterator() do
             if p ~= ply then
                 if losrequired and ply:IsLineOfSightClear(p) then
                     inlos = p:SteamID64()
@@ -476,7 +477,7 @@ if SERVER then
     -------------
 
     AddHook("TTTPrepareRound", "Faker_PrepareRound", function()
-        for _, p in ipairs(GetAllPlayers()) do
+        for _, p in PlayerIterator() do
             p:SetNWInt("FakerFakeCount", 0)
             p:SetNWString("FakerPlayerInLOS", "")
             p:SetNWString("FakerPlayerInRange", "")
