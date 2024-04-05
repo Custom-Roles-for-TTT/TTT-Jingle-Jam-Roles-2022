@@ -621,6 +621,11 @@ if CLIENT then
                 html = html .. "<span style='display: block; margin-top: 10px;'><span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>Traitor traps</span> also become available when <span style='color: rgb(" .. roleColor.r .. ", " .. roleColor.g .. ", " .. roleColor.b .. ")'>the " .. ROLE_STRINGS[ROLE_CLOWN] .. " is activated</span>.</span>"
             end
 
+            -- If this role can only spawn because of the marshal badge, let the users know
+            if not util.CanRoleSpawnNaturally(ROLE_DETECTOCLOWN) and detectoclown_override_marshal_badge:GetBool() then
+                html = html .. "<span style='display: block; margin-top: 10px;'>NOTE: The " .. ROLE_STRINGS[ROLE_DETECTOCLOWN] .. " does not spawn in a round normally, it can only be created by " .. ROLE_STRINGS_EXT[ROLE_MARSHAL] .. " <span style='color: rgb(" .. traitorColor.r .. ", " .. traitorColor.g .. ", " .. traitorColor.b .. ")'>using their badge</span> on a player who isn't an innocent or a traitor.</span>"
+            end
+
             return html
         end
     end)
