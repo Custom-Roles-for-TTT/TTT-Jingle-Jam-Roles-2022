@@ -220,6 +220,11 @@ if SERVER then
             net.WriteTable(WEPS.BuyableWeapons[ROLE_FAKER], CRVersion("2.1.10"))
             net.WriteTable(WEPS.ExcludeWeapons[ROLE_FAKER], CRVersion("2.1.10"))
             net.WriteTable(WEPS.BypassRandomWeapons[ROLE_FAKER], CRVersion("2.1.10"))
+            -- TODO: Remove version check after 2.1.11 is pushed to release
+            if CRVersion("2.1.11") then
+                -- Send empty table for loadout weapons
+                net.WriteTable({}, true)
+            end
         net.Broadcast()
     end)
 
