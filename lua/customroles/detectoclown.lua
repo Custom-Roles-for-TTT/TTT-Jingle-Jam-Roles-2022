@@ -28,6 +28,7 @@ to all players and can deal damage as normal. But that's not all, If
 the {detective} dies you will appear to become a new {detective} and
 gain their abilities just like the {deputy}. However you are still
 aiming to kill everyone. Be the last player standing to win.]]
+ROLE.shortdesc = "Promoted to replace the detective in the event of their death, but they are actually a Clown that must kill everyone else to win."
 
 ROLE.team = ROLE_TEAM_JESTER
 
