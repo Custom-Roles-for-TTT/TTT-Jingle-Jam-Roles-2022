@@ -26,6 +26,7 @@ ROLE.desc = [[You are {role}! Your job is to track down and kill target naughty 
 Any player that damages you or the innocents is considered naughty.
 
 {naughtylist}]]
+ROLE.shortdesc = "Tracks down and kills naughty players. Wins by having no naughty players remaining at the end of the round."
 
 ROLE.team = ROLE_TEAM_INDEPENDENT
 

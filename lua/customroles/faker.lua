@@ -35,6 +35,7 @@ items without drawing suspicion!
 
 Use enough fake weapons and survive
 until the end of the round to win!]]
+ROLE.shortdesc = "Can buy fake traitor weapons from their shop. Wins by using enough fake weapons near other players and surviving to the end of the round."
 
 ROLE.team = ROLE_TEAM_JESTER
 
