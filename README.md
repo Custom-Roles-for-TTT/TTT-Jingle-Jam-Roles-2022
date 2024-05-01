@@ -50,6 +50,7 @@ ttt_faker_line_of_sight_required 1   // Whether the faker must be in line of sig
 ttt_faker_minimum_distance       10  // The minimum distance (in metres) the faker must be from another player for their fake weapon use to count
 ttt_faker_drop_weapons_on_death  3   // The maximum number of weapons the faker should drop when they die
 ttt_faker_drop_shop_weapons      0   // Whether to drop shop weapons in addition to the weapons the faker used if they used fewer than "ttt_faker_drop_weapons_on_death"
+ttt_faker_win_ends_round         0   // Whether the faker winning causes the round to end
 ttt_faker_notify_mode            4   // The logic to use when notifying players that a faker is killed. Killer is notified unless "ttt_faker_notify_killer" is disabled. 0 - Don't notify anyone. 1 - Only notify traitors and detective. 2 - Only notify traitors. 3 - Only notify detective. 4 - Notify everyone
 ttt_faker_notify_killer          1   // Whether to notify a faker's killer
 ttt_faker_notify_sound           1   // Whether to play a cheering sound when a faker is killed

@@ -86,6 +86,10 @@ TableInsert(ROLE.convars, {
     cvar = "ttt_faker_notify_confetti",
     type = ROLE_CONVAR_TYPE_BOOL
 })
+TableInsert(ROLE.convars, {
+    cvar = "ttt_faker_win_ends_round",
+    type = ROLE_CONVAR_TYPE_BOOL
+})
 
 ROLE.translations = {
     ["english"] = {
@@ -163,8 +167,10 @@ if SERVER then
     CreateConVar("ttt_faker_notify_killer", "1", FCVAR_NONE, "Whether to notify a faker's killer", 0, 1)
     CreateConVar("ttt_faker_notify_sound", "1", FCVAR_NONE, "Whether to play a cheering sound when a faker is killed", 0, 1)
     CreateConVar("ttt_faker_notify_confetti", "1", FCVAR_NONE, "Whether to throw confetti when a faker is a killed", 0, 1)
+    local faker_win_ends_round = CreateConVar("ttt_faker_win_ends_round", "0", FCVAR_NONE, "Whether the faker winning causes the round to end", 0, 1)
 
     util.AddNetworkString("TTT_UpdateFakerWins")
+    util.AddNetworkString("TTT_ResetFakerWins")
     util.AddNetworkString("TTT_UpdateFakerWeaponKind")
     util.AddNetworkString("TTT_PlayFakerSound")
 
@@ -277,7 +283,9 @@ if SERVER then
         end
     end)
 
+    local fakerWinTime = nil
     AddHook("SetupMove", "Faker_SetupMove", function(ply, mv, cmd)
+        if fakerWinTime then return end
         if not ply:IsActiveFaker() or not mv:KeyDown(IN_ATTACK) then return end
 
         local wep = ply:GetActiveWeapon()
@@ -310,7 +318,19 @@ if SERVER then
             ply:SetNWInt("FakerFakeCount", count)
             snd = "buttons/bell1.wav"
             if count >= faker_required_fakes:GetInt() then
-                ply:QueueMessage(MSG_PRINTBOTH, "You have used enough fakes! Survive to win!" .. suffix)
+                local message = "You have used enough fakes!"
+                -- If the faker winning ends the round, handle that
+                if faker_win_ends_round:GetBool() then
+                    if not GetConVar("ttt_debug_preventwin"):GetBool() then
+                        -- Delay the actual end for a second so the message and sound have a chance to generate a reaction
+                        fakerWinTime = CurTime() + 1
+                    end
+
+                    ply:QueueMessage(MSG_PRINTBOTH, message)
+                -- Don't bother telling the faker to survive or drop their weapon if the round is about to end
+                else
+                    ply:QueueMessage(MSG_PRINTBOTH, message .. " Survive to win! " .. suffix)
+                end
             else
                 local delay = faker_credits_timer:GetInt()
                 if delay == 0 then
@@ -465,13 +485,35 @@ if SERVER then
     end)
 
     AddHook("TTTWinCheckComplete", "Faker_TTTWinCheckComplete", function(win_type)
+        if faker_win_ends_round:GetBool() then return end
         if win_type == WIN_NONE then return end
+
         local ply = player.GetLivingRole(ROLE_FAKER)
         if not IsPlayer(ply) then return end
         if ply:GetNWInt("FakerFakeCount", 0) >= faker_required_fakes:GetInt() then
             net.Start("TTT_UpdateFakerWins")
-            net.WriteBool(true)
             net.Broadcast()
+        end
+    end)
+
+    hook.Add("TTTCheckForWin", "Faker_TTTCheckForWin", function()
+        if not faker_win_ends_round:GetBool() then return end
+
+        if fakerWinTime then
+            if CurTime() > fakerWinTime then
+                fakerWinTime = nil
+                return WIN_FAKER
+            end
+
+            return WIN_NONE
+        end
+    end)
+
+    hook.Add("TTTPrintResultMessage", "Faker_TTTPrintResultMessage", function(type)
+        if type == WIN_FAKER then
+            LANG.Msg("win_faker", { role = ROLE_STRINGS[ROLE_FAKER] })
+            ServerLog("Result: " .. ROLE_STRINGS[ROLE_FAKER] .. " wins.\n")
+            return true
         end
     end)
 
@@ -479,7 +521,9 @@ if SERVER then
     -- CLEANUP --
     -------------
 
-    AddHook("TTTPrepareRound", "Faker_PrepareRound", function()
+    AddHook("TTTPrepareRound", "Faker_TTTPrepareRound", function()
+        fakerWinTime = nil
+
         for _, p in PlayerIterator() do
             p:SetNWInt("FakerFakeCount", 0)
             p:SetNWString("FakerPlayerInLOS", "")
@@ -487,6 +531,14 @@ if SERVER then
             p.FakerFakesUsed = {}
             p.FakerFakesBought = {}
         end
+
+        net.Start("TTT_ResetFakerWins")
+        net.Broadcast()
+    end)
+
+    AddHook("TTTBeginRound", "Faker_TTTBeginRound", function()
+        net.Start("TTT_ResetFakerWins")
+        net.Broadcast()
     end)
 end
 
@@ -503,21 +555,21 @@ if CLIENT then
     end)
 
     local faker_wins = false
-
-    AddHook("TTTPrepareRound", "Faker_WinTracking_TTTPrepareRound", function()
-        faker_wins = false
-    end)
-
     net.Receive("TTT_UpdateFakerWins", function()
         -- Log the win event with an offset to force it to the end
-        if net.ReadBool() then
-            faker_wins = true
-            CLSCORE:AddEvent({
-                id = EVENT_FINISH,
-                win = WIN_FAKER
-            }, 1)
-        end
+        faker_wins = true
+        CLSCORE:AddEvent({
+            id = EVENT_FINISH,
+            win = WIN_FAKER
+        }, 1)
     end)
+
+    local function ResetFakerWin()
+        faker_wins = false
+    end
+    net.Receive("TTT_ResetFakerWins", ResetFakerWin)
+    hook.Add("TTTPrepareRound", "Faker_WinTracking_TTTPrepareRound", ResetFakerWin)
+    hook.Add("TTTBeginRound", "Faker_WinTracking_TTTBeginRound", ResetFakerWin)
 
     AddHook("TTTScoringSecondaryWins", "Faker_TTTScoringSecondaryWins", function(wintype, secondary_wins)
         if faker_wins then
@@ -544,6 +596,12 @@ if CLIENT then
     -------------
     -- SCORING --
     -------------
+
+    AddHook("TTTScoringWinTitle", "Faker_TTTScoringWinTitle", function(wintype, wintitles, title, secondary_win_role)
+        if wintype == WIN_FAKER then
+            return { txt = "hilite_win_role_singular", params = { role = string.upper(ROLE_STRINGS[ROLE_FAKER]) }, c = ROLE_COLORS[ROLE_FAKER] }
+        end
+    end)
 
     AddHook("TTTScoringSummaryRender", "Faker_TTTScoringSummaryRender", function(ply, roleFileName, groupingRole, roleColor, name, startingRole, finalRole)
         if not IsPlayer(ply) then return end
