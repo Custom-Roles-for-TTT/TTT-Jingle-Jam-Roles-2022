@@ -496,7 +496,7 @@ if SERVER then
         end
     end)
 
-    hook.Add("TTTCheckForWin", "Faker_TTTCheckForWin", function()
+    AddHook("TTTCheckForWin", "Faker_TTTCheckForWin", function()
         if not faker_win_ends_round:GetBool() then return end
 
         if fakerWinTime then
@@ -509,7 +509,7 @@ if SERVER then
         end
     end)
 
-    hook.Add("TTTPrintResultMessage", "Faker_TTTPrintResultMessage", function(type)
+    AddHook("TTTPrintResultMessage", "Faker_TTTPrintResultMessage", function(type)
         if type == WIN_FAKER then
             LANG.Msg("win_faker", { role = ROLE_STRINGS[ROLE_FAKER] })
             ServerLog("Result: " .. ROLE_STRINGS[ROLE_FAKER] .. " wins.\n")
@@ -568,8 +568,8 @@ if CLIENT then
         faker_wins = false
     end
     net.Receive("TTT_ResetFakerWins", ResetFakerWin)
-    hook.Add("TTTPrepareRound", "Faker_WinTracking_TTTPrepareRound", ResetFakerWin)
-    hook.Add("TTTBeginRound", "Faker_WinTracking_TTTBeginRound", ResetFakerWin)
+    AddHook("TTTPrepareRound", "Faker_WinTracking_TTTPrepareRound", ResetFakerWin)
+    AddHook("TTTBeginRound", "Faker_WinTracking_TTTBeginRound", ResetFakerWin)
 
     AddHook("TTTScoringSecondaryWins", "Faker_TTTScoringSecondaryWins", function(wintype, secondary_wins)
         if faker_wins then
