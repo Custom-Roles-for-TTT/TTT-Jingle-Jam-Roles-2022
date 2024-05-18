@@ -310,10 +310,6 @@ if SERVER then
     util.AddNetworkString("KrampusVictimCarryEnd")
     util.AddNetworkString("KrampusVictimStruggle")
 
-    resource.AddSingleFile("sound/krampus/struggle1.mp3")
-    resource.AddSingleFile("sound/krampus/struggle2.mp3")
-    resource.AddSingleFile("sound/krampus/struggle3.mp3")
-
     local struggle_sounds = {
         Sound("krampus/struggle1.mp3"),
         Sound("krampus/struggle2.mp3"),
