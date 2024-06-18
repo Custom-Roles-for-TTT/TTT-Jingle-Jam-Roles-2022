@@ -4,7 +4,7 @@ A pack of [Custom Roles for TTT](https://github.com/Custom-Roles-for-TTT/TTT-Cus
 # Roles
 
 ## Detectoclown
-_Suggested By_: Noxx\
+_Contributed By_: Noxx\
 The Detectoclown is a jester role who is promoted when the detective dies like the deputy, but also triggers when the round would end and has to kill everyone like the clown.
 \
 \
