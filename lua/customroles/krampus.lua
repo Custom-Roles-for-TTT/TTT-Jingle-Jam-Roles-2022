@@ -457,7 +457,7 @@ if SERVER then
             if v:Alive() and v:IsTerror() then
                 if v:IsKrampus() then
                     krampus_alive = true
-                elseif not v:ShouldActLikeJester() then
+                elseif not v:ShouldActLikeJester() and not ROLE_HAS_PASSIVE_WIN[v:GetRole()] then
                     other_alive = true
                 end
             end
