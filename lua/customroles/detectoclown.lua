@@ -40,65 +40,73 @@ ROLE.isactive = function(ply)
     return ply:GetNWBool("HasPromotion", false)
 end
 
-ROLE.convars = {}
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_override_marshal_badge",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_use_traps_when_active",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_show_target_icon",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_hide_when_active",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_heal_on_activate",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_heal_bonus",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_damage_bonus",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 2
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_silly_names",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_blocks_deputy",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_blocks_impersonator",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_activation_credits",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_can_see_jesters",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_detectoclown_update_scoreboard",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
+ROLE.convars = {
+    {
+        cvar = "ttt_detectoclown_override_marshal_badge",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_use_traps_when_active",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_show_target_icon",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_hide_when_active",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_heal_on_activate",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_heal_bonus",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_detectoclown_damage_bonus",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 2
+    },
+    {
+        cvar = "ttt_detectoclown_silly_names",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_blocks_deputy",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_blocks_impersonator",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_activation_credits",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_detectoclown_can_see_jesters",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_detectoclown_update_scoreboard",
+        type = ROLE_CONVAR_TYPE_BOOL
+    }
+}
+
+local function IsRoleAbilityDisabled(ply)
+    return ply.IsRoleAbilityDisabled and ply:IsRoleAbilityDisabled()
+end
 
 ROLE.shouldactlikejester = function(ply)
-    return not ply:IsIndependentTeam()
+    if not IsPlayer(ply) or not ply:IsDetectoclown() then return end
+    if ply:IsJesterTeam() or IsRoleAbilityDisabled(ply) then
+        return true
+    end
 end
 
 ROLE.onroleassigned = function(ply)
@@ -267,46 +275,83 @@ if SERVER then
         WIN_DETECTOCLOWN = GenerateNewWinID(ROLE_DETECTOCLOWN)
     end)
 
+    local function ActivateDetectoclown(ply)
+        ply:SetNWBool("KillerDetectoclownActive", true)
+        if not ply:IsIndependentTeam() then
+            SetDetectoclownTeam(true)
+        end
+        ply:QueueMessage(MSG_PRINTBOTH, "KILL THEM ALL!")
+        local state = ply:GetNWInt("TTTInformantScanStage", INFORMANT_UNSCANNED)
+        if state ~= INFORMANT_UNSCANNED and state < INFORMANT_SCANNED_ROLE then
+            ply:SetNWInt("TTTInformantScanStage", INFORMANT_SCANNED_ROLE)
+        end
+        if detectoclown_heal_on_activate:GetBool() then
+            local heal_bonus = detectoclown_heal_bonus:GetInt()
+            local health = ply:GetMaxHealth() + heal_bonus
+
+            ply:SetHealth(health)
+            if heal_bonus > 0 then
+                ply:PrintMessage(HUD_PRINTTALK, "You have been fully healed (with a bonus)!")
+            else
+                ply:PrintMessage(HUD_PRINTTALK, "You have been fully healed!")
+            end
+        end
+        net.Start("TTT_DetectoclownActivate")
+        net.WriteEntity(ply)
+        net.Broadcast()
+
+        TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = detectoclown_use_traps_when_active:GetBool()
+    end
+
     local function HandleDetectoclownWinBlock(win_type)
         if win_type == WIN_NONE then return win_type end
 
-        local detectoclown = player.GetLivingRole(ROLE_DETECTOCLOWN)
-        if not IsPlayer(detectoclown) then return win_type end
+        -- Activate every detectoclown that hasn't already been activated
+        local activated = false
+        local living_detectoclowns = {}
+        for _, ply in PlayerIterator() do
+            if not IsPlayer(ply) then continue end
+            if not ply:Alive() or ply:IsSpec() then continue end
+            if not ply:IsDetectoclown() or IsRoleAbilityDisabled(ply) then continue end
+            table.insert(living_detectoclowns, ply)
 
-        -- We need this boolean still to differentiate between "promoted Detective-like" and "active Clown-like"
-        local killer_detectoclown_active = detectoclown:GetNWBool("KillerDetectoclownActive", false)
-        if not killer_detectoclown_active then
-            detectoclown:SetNWBool("KillerDetectoclownActive", true)
-            if not detectoclown:IsIndependentTeam() then
-                SetDetectoclownTeam(true)
+            -- We need this boolean still to differentiate between "promoted Detective-like" and "active Clown-like"
+            if not ply:GetNWBool("KillerDetectoclownActive", false) then
+                ActivateDetectoclown(ply)
+                activated = true
             end
-            detectoclown:QueueMessage(MSG_PRINTBOTH, "KILL THEM ALL!")
-            local state = detectoclown:GetNWInt("TTTInformantScanStage", INFORMANT_UNSCANNED)
-            if state ~= INFORMANT_UNSCANNED and state < INFORMANT_SCANNED_ROLE then
-                detectoclown:SetNWInt("TTTInformantScanStage", INFORMANT_SCANNED_ROLE)
-            end
-            if detectoclown_heal_on_activate:GetBool() then
-                local heal_bonus = detectoclown_heal_bonus:GetInt()
-                local health = detectoclown:GetMaxHealth() + heal_bonus
+        end
 
-                detectoclown:SetHealth(health)
-                if heal_bonus > 0 then
-                    detectoclown:PrintMessage(HUD_PRINTTALK, "You have been fully healed (with a bonus)!")
-                else
-                    detectoclown:PrintMessage(HUD_PRINTTALK, "You have been fully healed!")
-                end
-            end
-            net.Start("TTT_DetectoclownActivate")
-            net.WriteEntity(detectoclown)
-            net.Broadcast()
+        -- If we don't have any detectoclowns then don't bother continuing
+        if #living_detectoclowns == 0 then return win_type end
 
-            TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = detectoclown_use_traps_when_active:GetBool()
-
+        if activated then
             return WIN_NONE
         end
 
-        local clown = player.GetLivingRole(ROLE_CLOWN)
-        if IsPlayer(clown) and clown:IsRoleActive() and detectoclown:IsIndependentTeam() then return WIN_NONE end
+        -- Special logic for cupid wins
+        if win_type == WIN_CUPID then
+            for _, detectoclown in ipairs(living_detectoclowns) do
+                -- If the detectoclown is a lover, let the cupid/lover win pass
+                local lover = detectoclown:GetNWString("TTTCupidLover", "")
+                if #lover > 0 then
+                    return win_type
+                end
+            end
+        end
+
+        -- If at least one detectoclown is an independent and there is an independent clown as well, block the win until one of them dies
+        for _, detectoclown in ipairs(living_detectoclowns) do
+            if not detectoclown:IsIndependentTeam() then continue end
+
+            for _, ply in PlayerIterator() do
+                if not IsPlayer(ply) then continue end
+                if not ply:Alive() or ply:IsSpec() then continue end
+                if not ply:IsClown() or not ply:IsRoleActive() then continue end
+                if IsRoleAbilityDisabled(ply) then continue end
+                return WIN_NONE
+            end
+        end
 
         local traitor_alive, innocent_alive, indep_alive, monster_alive, _ = player.TeamLivingCount(true)
         -- If there are independents alive, check if any of them are non-detectoclowns
@@ -392,21 +437,24 @@ if CLIENT then
     end
 
     -- Show skull icon over target players' heads once the Detectoclown is activated, not just promoted
-    hook.Add("TTTTargetIDPlayerTargetIcon", "Detectoclown_TTTTargetIDPlayerTargetIcon", function(ply, cli, showJester)
-        if IsDetectoclownActive(cli) and detectoclown_show_target_icon:GetBool() and not showJester then
+    AddHook("TTTTargetIDPlayerTargetIcon", "Detectoclown_TTTTargetIDPlayerTargetIcon", function(ply, cli, showJester)
+        if IsDetectoclownActive(cli) and detectoclown_show_target_icon:GetBool() and not showJester and not IsRoleAbilityDisabled(cli) then
             return "kill", true, ROLE_COLORS_SPRITE[ROLE_DETECTOCLOWN], "down"
         end
     end)
 
     AddHook("TTTTargetIDPlayerRoleIcon", "Detectoclown_TTTTargetIDPlayerRoleIcon", function(ply, cli, role, noz, color_role, hideBeggar, showJester, hideBodysnatcher)
-        if IsDetectoclownActive(cli) and ply:ShouldActLikeJester() then
+        if IsDetectoclownActive(cli) and ply:ShouldActLikeJester() and (cli ~= ply) then
             local icon_overridden, _, _ = ply:IsTargetIDOverridden(cli)
             if icon_overridden then return end
 
             return ROLE_NONE, false, ROLE_JESTER
         end
 
-        if IsDetectoclownVisible(ply) then
+        if ply == cli or IsDetectoclownVisible(ply) then
+            if IsRoleAbilityDisabled(ply) then
+                return role, noz, ROLE_JESTER
+            end
             return ROLE_DETECTOCLOWN, false, ROLE_DETECTOCLOWN
         end
     end)
@@ -414,18 +462,24 @@ if CLIENT then
     AddHook("TTTTargetIDPlayerRing", "Detectoclown_TTTTargetIDPlayerRing", function(ent, cli, ring_visible)
         if GetRoundState() < ROUND_ACTIVE then return end
 
-        if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() then
+        if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() and (cli ~= ent) then
             local _, ring_overridden, _ = ent:IsTargetIDOverridden(cli)
             if ring_overridden then return end
 
             return true, ROLE_COLORS_RADAR[ROLE_JESTER]
         end
 
-        if IsDetectoclownVisible(ent) then
+        if ent == cli or IsDetectoclownVisible(ent) then
+            if IsRoleAbilityDisabled(ent) then
+                return ring_visible, GetRoleTeamColor(ROLE_TEAM_JESTER)
+            end
             return true, ROLE_COLORS_RADAR[ROLE_DETECTOCLOWN]
         end
 
         if IsDetectoclownPromoted(ent) then
+            if IsRoleAbilityDisabled(ent) then
+                return ring_visible, GetRoleTeamColor(ROLE_TEAM_JESTER)
+            end
             local role = ROLE_DEPUTY
             if GetConVar("ttt_deputy_use_detective_icon"):GetBool() then
                 role = ROLE_DETECTIVE
@@ -437,7 +491,7 @@ if CLIENT then
     AddHook("TTTTargetIDPlayerText", "Detectoclown_TTTTargetIDPlayerText", function(ent, cli, text, col, secondary_text)
         if GetRoundState() < ROUND_ACTIVE then return end
 
-        if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() then
+        if IsPlayer(ent) and IsDetectoclownActive(cli) and ent:ShouldActLikeJester() and (cli ~= ent) then
             local _, _, text_overridden = ent:IsTargetIDOverridden(cli)
             if text_overridden then return end
 
@@ -445,11 +499,17 @@ if CLIENT then
             return StringUpper(role_string), ROLE_COLORS_RADAR[ROLE_JESTER]
         end
 
-        if IsDetectoclownVisible(ent) then
+        if ent == cli or IsDetectoclownVisible(ent) then
+            if IsRoleAbilityDisabled(ent) then
+                return text, GetRoleTeamColor(ROLE_TEAM_JESTER)
+            end
             return StringUpper(ROLE_STRINGS[ROLE_DETECTOCLOWN]), ROLE_COLORS_RADAR[ROLE_DETECTOCLOWN]
         end
 
         if IsDetectoclownPromoted(ent) then
+            if IsRoleAbilityDisabled(ent) then
+                return text, GetRoleTeamColor(ROLE_TEAM_JESTER)
+            end
             local role = ROLE_DEPUTY
             if GetConVar("ttt_deputy_use_detective_icon"):GetBool() then
                 role = ROLE_DETECTIVE
@@ -466,7 +526,7 @@ if CLIENT then
         local text_overridden = false
         local target_jester = IsDetectoclownActive(ply) and target:ShouldActLikeJester()
         -- We only care about whether these are overridden if the target is a tester
-        if target_jester then
+        if target_jester and not target:IsDetectoclown() then
             icon_overridden, ring_overridden, text_overridden = target:IsTargetIDOverridden(ply)
         end
         local visible = IsDetectoclownVisible(target)
@@ -485,13 +545,16 @@ if CLIENT then
 
     AddHook("TTTScoreboardPlayerRole", "Detectoclown_TTTScoreboardPlayerRole", function(ply, cli, color, roleFileName)
         -- If the local client is an activated detectoclown and the target is a jester, show the jester icon
-        if IsDetectoclownActive(cli) and ply:ShouldActLikeJester() then
+        if IsDetectoclownActive(cli) and ply:ShouldActLikeJester() and (cli ~= ply) then
             local _, role_overridden = ply:IsScoreboardInfoOverridden(cli)
             if role_overridden then return end
 
             return ROLE_COLORS_SCOREBOARD[ROLE_JESTER], ROLE_STRINGS_SHORT[ROLE_NONE]
         end
         if IsDetectoclownVisible(ply) or (cli == ply and cli:IsDetectoclown()) then
+            if IsRoleAbilityDisabled(ply) then
+                return GetRoleTeamColor(ROLE_TEAM_JESTER, "scoreboard")
+            end
             return ROLE_COLORS_SCOREBOARD[ROLE_DETECTOCLOWN], ROLE_STRINGS_SHORT[ROLE_DETECTOCLOWN]
         end
     end)
@@ -502,7 +565,7 @@ if CLIENT then
         local role_overridden = false
         local target_jester = IsDetectoclownActive(ply) and target:ShouldActLikeJester()
         -- We only care about whether these are overridden if the target is a tester
-        if target_jester then
+        if target_jester and not target:IsDetectoclown() then
             _, role_overridden = target:IsScoreboardInfoOverridden(ply)
         end
         local visible = IsDetectoclownVisible(target)
@@ -510,6 +573,31 @@ if CLIENT then
         ------ name,  role
         return false, (target_jester and not role_overridden) or visible
     end
+
+    ----------------------------
+    -- DISABLED HUD OVERRIDES --
+    ----------------------------
+
+    AddHook("TTTHUDRoleColorOverride", "Detectoclown_RoleDisabled_TTTHUDRoleColorOverride", function(cli, colType)
+        if not IsPlayer(cli) or not cli:IsDetectoclown() then return end
+        if not cli:IsIndependentTeam() or not IsRoleAbilityDisabled(cli) then return end
+
+        return GetRoleTeamColor(ROLE_TEAM_JESTER, colType)
+    end)
+
+    AddHook("TTTCrosshairColorOverride", "Detectoclown_RoleDisabled_TTTCrosshairColorOverride", function(cli)
+        if not IsPlayer(cli) or not cli:IsDetectoclown() then return end
+        if not cli:IsIndependentTeam() or not IsRoleAbilityDisabled(cli) then return end
+
+        return GetRoleTeamColor(ROLE_TEAM_JESTER, "highlight")
+    end)
+
+    AddHook("TTTScoringSummaryRender", "Detectoclown_RoleDisabled_TTTScoringSummaryRender", function(ply, roleFileName, groupingRole, roleColor, name, startingRole, finalRole)
+        if not IsPlayer(ply) or not ply:IsDetectoclown() then return end
+        if not ply:IsIndependentTeam() or not IsRoleAbilityDisabled(ply) then return end
+
+        return false, false, GetRoleTeamColor(ROLE_TEAM_JESTER)
+    end)
 
     -------------
     -- SCORING --
@@ -637,7 +725,7 @@ if CLIENT then
     end)
 end
 
-hook.Add("TTTRoleSpawnsArtificially", "Detectoclown_TTTRoleSpawnsArtificially", function(role)
+AddHook("TTTRoleSpawnsArtificially", "Detectoclown_TTTRoleSpawnsArtificially", function(role)
     if role == ROLE_DETECTOCLOWN and util.CanRoleSpawn(ROLE_MARSHAL) and detectoclown_override_marshal_badge:GetBool() then
         return true
     end
