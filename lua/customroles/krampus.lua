@@ -32,79 +32,79 @@ ROLE.team = ROLE_TEAM_INDEPENDENT
 
 ROLE.shop = {}
 
-ROLE.convars = {}
-
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_show_target_icon",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_target_vision_enabled",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_target_damage_bonus",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 2
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_win_delay_time",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_next_target_delay",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_is_monster",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_warn",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_warn_all",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_naughty_notify",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_naughty_traitors",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_naughty_innocent_damage",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_naughty_jester_damage",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_release_delay",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_carry_duration",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_struggle_interval",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 2
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_krampus_struggle_reduction",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 2
-})
+ROLE.convars = {
+    {
+        cvar = "ttt_krampus_show_target_icon",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_target_vision_enabled",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_target_damage_bonus",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 2
+    },
+    {
+        cvar = "ttt_krampus_win_delay_time",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_krampus_next_target_delay",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_krampus_is_monster",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_warn",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_warn_all",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_naughty_notify",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_naughty_traitors",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_naughty_innocent_damage",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_naughty_jester_damage",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_krampus_release_delay",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_krampus_carry_duration",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_krampus_struggle_interval",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 2
+    },
+    {
+        cvar = "ttt_krampus_struggle_reduction",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 2
+    }
+}
 
 KRAMPUS_NAUGHTY_NONE = 0
 KRAMPUS_NAUGHTY_DAMAGE = 1
@@ -118,6 +118,10 @@ local krampus_is_monster = CreateConVar("ttt_krampus_is_monster", "0", FCVAR_REP
 local krampus_naughty_traitors = CreateConVar("ttt_krampus_naughty_traitors", "1", FCVAR_REPLICATED)
 local krampus_naughty_innocent_damage = CreateConVar("ttt_krampus_naughty_innocent_damage", "1", FCVAR_REPLICATED)
 local krampus_naughty_jester_damage = CreateConVar("ttt_krampus_naughty_jester_damage", "1", FCVAR_REPLICATED)
+
+local function IsRoleAbilityDisabled(ply)
+    return ply.IsRoleAbilityDisabled and ply:IsRoleAbilityDisabled()
+end
 
 local function ValidTarget(ply, role)
     -- If the player is naughty then they are a valid target
@@ -195,6 +199,11 @@ if SERVER then
         -- And don't assign targets if the round isn't currently running
         if not IsPlayer(ply) or GetRoundState() > ROUND_ACTIVE or not ply:IsKrampus() then
             return
+        elseif IsRoleAbilityDisabled(ply) then
+            timer.Remove(ply:Nick() .. "KrampusTarget")
+            ply:ClearQueuedMessage("kraTarget")
+            ply:SetNWString("KrampusTarget", "")
+            return
         end
 
         -- Reset the target to empty in case there are no valid targets
@@ -232,7 +241,8 @@ if SERVER then
         if ply:Alive() and not ply:IsSpec() then
             -- Don't show "target eliminated" if this is their first target or they were waiting for someone to be naughty
             if #target > 0 and not delay and not start then targetMessage = "Target eliminated. " .. targetMessage end
-            ply:QueueMessage(MSG_PRINTBOTH, targetMessage)
+            ply:ClearQueuedMessage("kraTarget")
+            ply:QueueMessage(MSG_PRINTBOTH, targetMessage, 5, "kraTarget")
         end
     end
 
@@ -352,6 +362,14 @@ if SERVER then
         end
     end)
 
+    AddHook("TTTOnRoleAbilityEnabled", "Krampus_TTTOnRoleAbilityEnabled", function(ply)
+        if not IsPlayer(ply) or not ply:IsKrampus() then return end
+
+        if ply:GetNWString("KrampusTarget", "") == "" then
+            AssignKrampusTarget(ply, false, true)
+        end
+    end)
+
     AddHook("TTTTurncoatTeamChanged", "Krampus_TTTTurncoatTeamChanged", function(ply, traitor)
         if not IsPlayer(ply) then return end
 
@@ -366,7 +384,7 @@ if SERVER then
     AddHook("ScalePlayerDamage", "Krampus_ScalePlayerDamage", function(ply, hitgroup, dmginfo)
         local att = dmginfo:GetAttacker()
         -- Only apply damage scaling after the round starts
-        if IsPlayer(att) and GetRoundState() >= ROUND_ACTIVE and att:IsKrampus() and ply ~= att and not ply:IsJesterTeam() then
+        if IsPlayer(att) and GetRoundState() >= ROUND_ACTIVE and att:IsKrampus() and ply ~= att and not ply:IsJesterTeam() and not IsRoleAbilityDisabled(att) then
             -- Krampus deals extra damage based on how many naughty players they have killed
             local killed = att.KrampusNaughtyKilled or 0
             local scale = krampus_target_damage_bonus:GetFloat() * killed
@@ -548,7 +566,7 @@ if CLIENT then
 
     -- Show skull icon over the target's head
     hook.Add("TTTTargetIDPlayerTargetIcon", "Krampus_TTTTargetIDPlayerTargetIcon", function(ply, cli, showJester)
-        if cli:IsKrampus() and krampus_show_target_icon:GetBool() and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester then
+        if cli:IsKrampus() and krampus_show_target_icon:GetBool() and cli:GetNWString("KrampusTarget") == ply:SteamID64() and not showJester and not IsRoleAbilityDisabled(cli) then
             return "kill", true, ROLE_COLORS_SPRITE[ROLE_KRAMPUS], "down"
         end
     end)
@@ -556,6 +574,7 @@ if CLIENT then
     ROLE.istargetidoverridden = function(ply, target, showJester)
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
+        if IsRoleAbilityDisabled(ply) then return end
 
         local show = (target:SteamID64() == ply:GetNWString("KrampusTarget", "")) and not showJester and krampus_show_target_icon:GetBool()
         ------ icon,  ring, text
@@ -568,13 +587,13 @@ if CLIENT then
 
     -- Flash the krampus target's row on the scoreboard
     AddHook("TTTScoreboardPlayerRole", "Krampus_TTTScoreboardPlayerRole", function(ply, cli, c, roleStr)
-        if cli:IsKrampus() and ply:SteamID64() == cli:GetNWString("KrampusTarget", "") then
+        if cli:IsKrampus() and ply:SteamID64() == cli:GetNWString("KrampusTarget", "") and not IsRoleAbilityDisabled(cli) then
             return c, roleStr, ROLE_KRAMPUS
         end
     end)
 
     AddHook("TTTScoreboardPlayerName", "Krampus_TTTScoreboardPlayerName", function(ply, cli, text)
-        if cli:IsKrampus() and ply:SteamID64() == cli:GetNWString("KrampusTarget", "") then
+        if cli:IsKrampus() and ply:SteamID64() == cli:GetNWString("KrampusTarget", "") and not IsRoleAbilityDisabled(cli) then
             local newText = " (" .. LANG.GetTranslation("target_krampus_target") .. ")"
             return ply:Nick() .. newText
         end
@@ -583,6 +602,7 @@ if CLIENT then
     ROLE.isscoreboardinfooverridden = function(ply, target)
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
+        if IsRoleAbilityDisabled(ply) then return end
 
         local show = target:SteamID64() == ply:GetNWString("KrampusTarget", "")
         ------ name,  role
@@ -632,7 +652,7 @@ if CLIENT then
     AddHook("Think", "Krampus_Highlight_Think", function()
         if not IsPlayer(client) or not client:Alive() or client:IsSpec() then return end
 
-        if krampus_target_vision and client:IsKrampus() then
+        if krampus_target_vision and client:IsKrampus() and not IsRoleAbilityDisabled(client) then
             if not vision_enabled then
                 EnableKrampusTargetHighlights()
                 vision_enabled = true
@@ -649,6 +669,7 @@ if CLIENT then
     ROLE.istargethighlighted = function(ply, target)
         if not ply:IsKrampus() then return end
         if not IsPlayer(target) then return end
+        if IsRoleAbilityDisabled(ply) then return end
 
         local target_sid64 = ply:GetNWString("KrampusTarget", "")
         if not target_sid64 or #target_sid64 == 0 then return end

@@ -44,52 +44,53 @@ ROLE.shop = {}
 ROLE.startingcredits = 1
 ROLE.canlootcredits = false
 
-ROLE.convars = {}
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_required_fakes",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_credits_timer",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_line_of_sight_required",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_minimum_distance",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 1
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_drop_weapons_on_death",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_drop_shop_weapons",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_notify_mode",
-    type = ROLE_CONVAR_TYPE_NUM,
-    decimal = 0
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_notify_sound",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_notify_confetti",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
-TableInsert(ROLE.convars, {
-    cvar = "ttt_faker_win_ends_round",
-    type = ROLE_CONVAR_TYPE_BOOL
-})
+ROLE.convars = {
+    {
+        cvar = "ttt_faker_required_fakes",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_faker_credits_timer",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_faker_line_of_sight_required",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_faker_minimum_distance",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 1
+    },
+    {
+        cvar = "ttt_faker_drop_weapons_on_death",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_faker_drop_shop_weapons",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_faker_notify_mode",
+        type = ROLE_CONVAR_TYPE_NUM,
+        decimal = 0
+    },
+    {
+        cvar = "ttt_faker_notify_sound",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_faker_notify_confetti",
+        type = ROLE_CONVAR_TYPE_BOOL
+    },
+    {
+        cvar = "ttt_faker_win_ends_round",
+        type = ROLE_CONVAR_TYPE_BOOL
+    }
+}
 
 ROLE.translations = {
     ["english"] = {
@@ -131,6 +132,10 @@ local faker_drop_weapons_on_death = CreateConVar("ttt_faker_drop_weapons_on_deat
 local faker_drop_shop_weapons = CreateConVar("ttt_faker_drop_shop_weapons", "0", FCVAR_REPLICATED, "Whether to drop shop weapons in addition to the weapons the faker used if they used fewer than \"ttt_faker_drop_weapons_on_death\"", 0, 1)
 
 local function GetFakerState(ply)
+    if ply.IsRoleAbilityDisabled and ply:IsRoleAbilityDisabled() then
+        return FAKER_MISSING_BOTH
+    end
+
     local los = faker_line_of_sight_required:GetBool()
     local range = faker_minimum_distance:GetFloat() * UNITS_PER_METER
     local losply = ply:GetNWString("FakerPlayerInLOS", "")
@@ -415,6 +420,7 @@ if SERVER then
 
     AddHook("PlayerDeath", "Faker_PlayerDeath", function(victim, infl, attacker)
         if not victim:IsFaker() then return end
+        if victim.IsRoleAbilityDisabled and victim:IsRoleAbilityDisabled() then return end
 
         JesterTeamKilledNotification(attacker, victim,
         -- getkillstring
