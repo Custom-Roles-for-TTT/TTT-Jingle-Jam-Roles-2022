@@ -3,7 +3,7 @@ A pack of [Custom Roles for TTT](https://github.com/Custom-Roles-for-TTT/TTT-Cus
 
 # Roles
 
-## Detectoclown
+## ![Role Icon](/gamemodes/terrortown/content/materials/vgui/ttt/roles/dcn/tab_dcn.png) Detectoclown
 _Contributed By_: Noxx\
 The Detectoclown is a jester role who is promoted when the detective dies like the deputy, but also triggers when the round would end and has to kill everyone like the clown.
 \
@@ -32,7 +32,7 @@ ttt_detectoclown_can_see_jesters        1   // Whether jesters are revealed (via
 ttt_detectoclown_update_scoreboard      1   // Whether the detectoclown shows dead players as missing in action
 ```
 
-## Faker
+## ![Role Icon](/gamemodes/terrortown/content/materials/vgui/ttt/roles/fkr/tab_fkr.png) Faker
 _Suggested By_: Mynt\
 The Faker is a jester role who needs to buy and use fake traitor items without drawing suspicion. If they can use enough fake items and survive until the end of the round they win!
 \
@@ -58,7 +58,7 @@ ttt_faker_notify_confetti        1   // Whether to throw confetti when a faker i
 ttt_faker_excluded_weapons       "dancedead,pusher_swep,tfa_shrinkray,tfa_thundergun,tfa_wintershowl,ttt_kamehameha_swep,weapon_ap_golddragon,weapon_ttt_artillery,weapon_ttt_bike,weapon_ttt_boomerang,weapon_ttt_brain,weapon_ttt_chickennade,weapon_ttt_chickenator,weapon_ttt_dd,weapon_ttt_flaregun,weapon_ttt_homebat,weapon_ttt_knife,weapon_ttt_popupgun,weapon_ttt_traitor_lightsaber" // A comma separated list of weapon classes to exclude from the faker's shop
 ```
 
-## Krampus
+## ![Role Icon](/gamemodes/terrortown/content/materials/vgui/ttt/roles/kra/tab_kra.png) Krampus
 _Suggested By_: Kawaii Five-0\
 The Krampus is an independent role whose goal is to punish naughty players.
 \
