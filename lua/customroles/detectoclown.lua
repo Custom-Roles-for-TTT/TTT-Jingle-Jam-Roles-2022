@@ -98,13 +98,9 @@ ROLE.convars = {
     }
 }
 
-local function IsRoleAbilityDisabled(ply)
-    return ply.IsRoleAbilityDisabled and ply:IsRoleAbilityDisabled()
-end
-
 ROLE.shouldactlikejester = function(ply)
     if not IsPlayer(ply) or not ply:IsDetectoclown() then return end
-    if ply:IsJesterTeam() or IsRoleAbilityDisabled(ply) then
+    if ply:IsJesterTeam() or ply:IsRoleAbilityDisabled() then
         return true
     end
 end
@@ -312,7 +308,7 @@ if SERVER then
         for _, ply in PlayerIterator() do
             if not IsPlayer(ply) then continue end
             if not ply:Alive() or ply:IsSpec() then continue end
-            if not ply:IsDetectoclown() or IsRoleAbilityDisabled(ply) then continue end
+            if not ply:IsDetectoclown() or ply:IsRoleAbilityDisabled() then continue end
             table.insert(living_detectoclowns, ply)
 
             -- We need this boolean still to differentiate between "promoted Detective-like" and "active Clown-like"
@@ -348,7 +344,7 @@ if SERVER then
                 if not IsPlayer(ply) then continue end
                 if not ply:Alive() or ply:IsSpec() then continue end
                 if not ply:IsClown() or not ply:IsRoleActive() then continue end
-                if IsRoleAbilityDisabled(ply) then continue end
+                if ply:IsRoleAbilityDisabled() then continue end
                 return WIN_NONE
             end
         end
@@ -438,7 +434,7 @@ if CLIENT then
 
     -- Show skull icon over target players' heads once the Detectoclown is activated, not just promoted
     AddHook("TTTTargetIDPlayerTargetIcon", "Detectoclown_TTTTargetIDPlayerTargetIcon", function(ply, cli, showJester)
-        if IsDetectoclownActive(cli) and detectoclown_show_target_icon:GetBool() and not showJester and not IsRoleAbilityDisabled(cli) then
+        if IsDetectoclownActive(cli) and detectoclown_show_target_icon:GetBool() and not showJester and not cli:IsRoleAbilityDisabled() then
             return "kill", true, ROLE_COLORS_SPRITE[ROLE_DETECTOCLOWN], "down"
         end
     end)
@@ -452,7 +448,7 @@ if CLIENT then
         end
 
         if ply == cli or IsDetectoclownVisible(ply) then
-            if IsRoleAbilityDisabled(ply) then
+            if ply:IsRoleAbilityDisabled() then
                 return role, noz, ROLE_JESTER
             end
             return ROLE_DETECTOCLOWN, false, ROLE_DETECTOCLOWN
@@ -470,14 +466,14 @@ if CLIENT then
         end
 
         if ent == cli or IsDetectoclownVisible(ent) then
-            if IsRoleAbilityDisabled(ent) then
+            if ent:IsRoleAbilityDisabled() then
                 return ring_visible, GetRoleTeamColor(ROLE_TEAM_JESTER)
             end
             return true, ROLE_COLORS_RADAR[ROLE_DETECTOCLOWN]
         end
 
         if IsDetectoclownPromoted(ent) then
-            if IsRoleAbilityDisabled(ent) then
+            if ent:IsRoleAbilityDisabled() then
                 return ring_visible, GetRoleTeamColor(ROLE_TEAM_JESTER)
             end
             local role = ROLE_DEPUTY
@@ -500,14 +496,14 @@ if CLIENT then
         end
 
         if ent == cli or IsDetectoclownVisible(ent) then
-            if IsRoleAbilityDisabled(ent) then
+            if ent:IsRoleAbilityDisabled() then
                 return text, GetRoleTeamColor(ROLE_TEAM_JESTER)
             end
             return StringUpper(ROLE_STRINGS[ROLE_DETECTOCLOWN]), ROLE_COLORS_RADAR[ROLE_DETECTOCLOWN]
         end
 
         if IsDetectoclownPromoted(ent) then
-            if IsRoleAbilityDisabled(ent) then
+            if ent:IsRoleAbilityDisabled() then
                 return text, GetRoleTeamColor(ROLE_TEAM_JESTER)
             end
             local role = ROLE_DEPUTY
@@ -552,7 +548,7 @@ if CLIENT then
             return ROLE_COLORS_SCOREBOARD[ROLE_JESTER], ROLE_STRINGS_SHORT[ROLE_NONE]
         end
         if IsDetectoclownVisible(ply) or (cli == ply and cli:IsDetectoclown()) then
-            if IsRoleAbilityDisabled(ply) then
+            if ply:IsRoleAbilityDisabled() then
                 return GetRoleTeamColor(ROLE_TEAM_JESTER, "scoreboard")
             end
             return ROLE_COLORS_SCOREBOARD[ROLE_DETECTOCLOWN], ROLE_STRINGS_SHORT[ROLE_DETECTOCLOWN]
@@ -580,21 +576,21 @@ if CLIENT then
 
     AddHook("TTTHUDRoleColorOverride", "Detectoclown_RoleDisabled_TTTHUDRoleColorOverride", function(cli, colType)
         if not IsPlayer(cli) or not cli:IsDetectoclown() then return end
-        if not cli:IsIndependentTeam() or not IsRoleAbilityDisabled(cli) then return end
+        if not cli:IsIndependentTeam() or not cli:IsRoleAbilityDisabled() then return end
 
         return GetRoleTeamColor(ROLE_TEAM_JESTER, colType)
     end)
 
     AddHook("TTTCrosshairColorOverride", "Detectoclown_RoleDisabled_TTTCrosshairColorOverride", function(cli)
         if not IsPlayer(cli) or not cli:IsDetectoclown() then return end
-        if not cli:IsIndependentTeam() or not IsRoleAbilityDisabled(cli) then return end
+        if not cli:IsIndependentTeam() or not cli:IsRoleAbilityDisabled() then return end
 
         return GetRoleTeamColor(ROLE_TEAM_JESTER, "highlight")
     end)
 
     AddHook("TTTScoringSummaryRender", "Detectoclown_RoleDisabled_TTTScoringSummaryRender", function(ply, roleFileName, groupingRole, roleColor, name, startingRole, finalRole)
         if not IsPlayer(ply) or not ply:IsDetectoclown() then return end
-        if not ply:IsIndependentTeam() or not IsRoleAbilityDisabled(ply) then return end
+        if not ply:IsIndependentTeam() or not ply:IsRoleAbilityDisabled() then return end
 
         return false, false, GetRoleTeamColor(ROLE_TEAM_JESTER)
     end)

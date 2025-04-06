@@ -132,7 +132,7 @@ local faker_drop_weapons_on_death = CreateConVar("ttt_faker_drop_weapons_on_deat
 local faker_drop_shop_weapons = CreateConVar("ttt_faker_drop_shop_weapons", "0", FCVAR_REPLICATED, "Whether to drop shop weapons in addition to the weapons the faker used if they used fewer than \"ttt_faker_drop_weapons_on_death\"", 0, 1)
 
 local function GetFakerState(ply)
-    if ply.IsRoleAbilityDisabled and ply:IsRoleAbilityDisabled() then
+    if ply:IsRoleAbilityDisabled() then
         return FAKER_MISSING_BOTH
     end
 
@@ -420,7 +420,7 @@ if SERVER then
 
     AddHook("PlayerDeath", "Faker_PlayerDeath", function(victim, infl, attacker)
         if not victim:IsFaker() then return end
-        if victim.IsRoleAbilityDisabled and victim:IsRoleAbilityDisabled() then return end
+        if victim:IsRoleAbilityDisabled() then return end
 
         JesterTeamKilledNotification(attacker, victim,
         -- getkillstring
