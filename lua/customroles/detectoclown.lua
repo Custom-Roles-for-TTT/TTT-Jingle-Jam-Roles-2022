@@ -132,10 +132,11 @@ function SetDetectoclownTeam(independent)
     JESTER_ROLES[ROLE_DETECTOCLOWN] = not independent
 
     UpdateRoleColours()
+    WEPS.ResetRoleWeaponCache(ROLE_DETECTOCLOWN)
 
     if SERVER then
         net.Start("TTT_DetectoclownTeamChange")
-        net.WriteBool(independent)
+            net.WriteBool(independent)
         net.Broadcast()
     end
 end
@@ -293,7 +294,7 @@ if SERVER then
             end
         end
         net.Start("TTT_DetectoclownActivate")
-        net.WriteEntity(ply)
+            net.WriteEntity(ply)
         net.Broadcast()
 
         TRAITOR_BUTTON_ROLES[ROLE_DETECTOCLOWN] = detectoclown_use_traps_when_active:GetBool()
